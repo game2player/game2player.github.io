@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Game2Player</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="intro">
+  <div class="stage">
+    <canvas id="wall"></canvas>
+    <div class="title-band" id="title-band"><h1>Game2Player</h1><p>From Automated Co-Synthesis of Game Environments and Code Policies to VLM Players</p></div>
+    <div class="games-head" id="games-head">
+      <div class="wrap">
+        <div class="head-row"><h2 class="sec">Games</h2>
+          <div class="seg" id="group-seg"><button data-g="genre" class="on">Genre</button><button data-g="engine">Engine</button></div></div>
+        <div class="bignums" id="bignums"></div>
+      </div>
+    </div>
+    <div class="tip" id="tip"><video id="tip-video" muted loop playsinline></video><div class="t"><h4 id="tip-title"></h4><div class="m" id="tip-meta"></div></div></div>
+  </div>
+</div>
+
+<section class="chapter" id="loop">
+  <div class="wrap">
+    <div class="sec-head"><h2 class="sec">The Loop</h2><div class="scope" id="loop-scope"></div></div>
+    <div class="flow" id="flow">
+      <svg class="wires" id="wires"></svg>
+      <button class="fnode" data-k="scout"></button>
+      <button class="fnode" data-k="builder"></button>
+      <div class="fgroup"><span class="glabel">Check</span><button class="fnode" data-k="vlm"></button><button class="fnode" data-k="policy"></button></div>
+      <button class="fnode" data-k="data"></button>
+    </div>
+    <div class="loop-panel" id="loop-panel"></div>
+  </div>
+</section>
+
+<section class="chapter" id="examples">
+  <div class="wrap">
+    <div class="sec-head"><h2 class="sec">Examples</h2><div class="tabs" id="ex-tabs"></div></div>
+    <div class="bench" id="ex-bench">
+      <div id="ex-left">
+        <div class="screen" id="ex-screen">
+          <video id="ex-video" muted playsinline preload="none"></video>
+          <svg class="cursor" id="ex-cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
+          <div class="ripple" id="ex-ripple"></div>
+        </div>
+        <div class="transport"><button id="ex-play">▶</button><div class="scrub" id="ex-scrub"><canvas id="ex-scrub-c"></canvas></div><span class="time" id="ex-time"></span></div>
+        <div class="deck"><div class="kb"><svg id="ex-kb"></svg></div><div class="ms" id="ex-ms-box"><svg id="ex-ms" viewBox="0 0 92 150"></svg></div></div>
+      </div>
+      <div id="ex-right">
+        <div class="task" id="ex-task-box"><span>Task prompt</span><p id="ex-task"></p></div>
+        <div class="read"><div><b id="ex-prog">0%</b><span>Progress</span></div><div><b id="ex-t">0.0</b><span>Seconds</span></div></div>
+        <div class="charts"><canvas id="ex-charts"></canvas></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="policy">
+  <div class="wrap">
+    <div class="sec-head"><h2 class="sec">How a Policy Plays</h2><div class="tabs" id="pv-tabs"></div></div>
+    <div class="bench" id="pv-bench">
+      <div id="pv-left">
+        <div class="screen">
+          <video id="pv-video" muted playsinline preload="none"></video>
+          <svg class="cursor" id="pv-cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
+          <div class="ripple" id="pv-ripple"></div>
+        </div>
+        <div class="transport"><button id="pv-play">▶</button><div class="scrub" id="pv-scrub"><canvas id="pv-scrub-c"></canvas></div><span class="time" id="pv-time"></span></div>
+        <div class="probe" id="probe"><div class="pmap-box"><canvas id="pmap"></canvas></div><div class="fields" id="fields"></div></div>
+        <div class="deck"><div class="kb"><svg id="pv-kb"></svg></div><div class="ms" id="pv-ms-box"><svg id="pv-ms" viewBox="0 0 92 150"></svg></div></div>
+      </div>
+      <div class="code-window" id="code-window">
+        <div class="bar"><span id="code-file"></span><span id="code-step"></span></div>
+        <div class="code-scroll" id="code-scroll"><div class="code" id="code"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

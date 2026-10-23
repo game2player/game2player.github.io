@@ -1,0 +1,279 @@
+{
+ "campaigns": [
+  "claude-128",
+  "claude-flash-20261017",
+  "codex-038",
+  "codex-expansion-451-500",
+  "codex-flash-20261017",
+  "codex-replacements-20261018",
+  "commandcode-132",
+  "opencode-125"
+ ],
+ "games": 254,
+ "scout": {
+  "games": 254,
+  "minutes": 1.4,
+  "decision": [
+   [
+    "Recommend",
+    63
+   ],
+   [
+    "Reserve",
+    189
+   ],
+   [
+    "Reject",
+    2
+   ]
+  ],
+  "source": [
+   [
+    "itch.io",
+    197
+   ],
+   [
+    "Other sites",
+    33
+   ],
+   [
+    "Flash archives",
+    23
+   ],
+   [
+    "GitHub",
+    1
+   ]
+  ],
+  "offline": [
+   [
+    "strong",
+    71
+   ],
+   [
+    "plausible",
+    179
+   ],
+   [
+    "weak",
+    2
+   ],
+   [
+    "unknown",
+    2
+   ]
+  ],
+  "state": [
+   [
+    "strong",
+    20
+   ],
+   [
+    "plausible",
+    226
+   ],
+   [
+    "unknown",
+    8
+   ]
+  ]
+ },
+ "builder": {
+  "outcome": [
+   [
+    "Built",
+    246
+   ],
+   [
+    "Unsuitable",
+    6
+   ]
+  ],
+  "minutes": 41,
+  "engine": [
+   [
+    "Unity WebGL",
+    76
+   ],
+   [
+    "Flash",
+    56
+   ],
+   [
+    "Godot",
+    33
+   ],
+   [
+    "GameMaker",
+    31
+   ],
+   [
+    "PICO-8",
+    25
+   ],
+   [
+    "HTML5",
+    19
+   ],
+   [
+    "Construct",
+    13
+   ],
+   [
+    "Defold",
+    1
+   ]
+  ],
+  "tasks": [
+   [
+    "1-2",
+    4
+   ],
+   [
+    "3-4",
+    29
+   ],
+   [
+    "5-6",
+    142
+   ],
+   [
+    "7-8",
+    50
+   ],
+   [
+    "9-10",
+    21
+   ],
+   [
+    "11+",
+    0
+   ]
+  ],
+  "tasks_total": 1444
+ },
+ "vlm": {
+  "games": 246,
+  "first_clean": 153,
+  "reported": 93,
+  "reports": 211,
+  "repairs": 136,
+  "per_game": [
+   [
+    "1",
+    46
+   ],
+   [
+    "2",
+    21
+   ],
+   [
+    "3",
+    11
+   ],
+   [
+    "4+",
+    15
+   ]
+  ],
+  "models": [
+   [
+    "GPT-6 Luna",
+    251
+   ],
+   [
+    "Claude Haiku 5.5",
+    84
+   ],
+   [
+    "Qwen3.8 27B",
+    7
+   ]
+  ]
+ },
+ "policy": {
+  "outcome": [
+   [
+    "Passed",
+    193
+   ],
+   [
+    "Partial",
+    33
+   ],
+   [
+    "Unsuitable",
+    20
+   ]
+  ],
+  "minutes": 95,
+  "asked": 93,
+  "requests": 95,
+  "files": 387,
+  "lines": [
+   [
+    "0-99",
+    56
+   ],
+   [
+    "100-199",
+    138
+   ],
+   [
+    "200-299",
+    89
+   ],
+   [
+    "300-399",
+    47
+   ],
+   [
+    "400-599",
+    42
+   ],
+   [
+    "600+",
+    15
+   ]
+  ],
+  "lines_median": 197
+ },
+ "data": {
+  "policy": {
+   "episodes": 13409,
+   "games": 337,
+   "hours": 227.8,
+   "completed": 0.947
+  },
+  "vlm": [
+   {
+    "episodes": 2258,
+    "games": 395,
+    "hours": 72.6,
+    "completed": 0.174,
+    "model": "Claude Haiku 5.5"
+   },
+   {
+    "episodes": 481,
+    "games": 396,
+    "hours": 8.4,
+    "completed": 0.391,
+    "model": "DeepSeek V4.1 Flash"
+   },
+   {
+    "episodes": 329,
+    "games": 272,
+    "hours": 10.2,
+    "completed": 0.347,
+    "model": "GPT-6 Luna"
+   },
+   {
+    "episodes": 126,
+    "games": 19,
+    "hours": 4.3,
+    "completed": 0.27,
+    "model": "MiniMax M3.1 Flash"
+   }
+  ]
+ }
+}
