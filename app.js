@@ -291,6 +291,27 @@ function initLoop(S, T) {
   // three numbered steps along a track, each a card of the same size. The steps light up in
   // turn; stages that run more than once (the VLM's moves, the two reports) start over.
   const P = S.play, texts = [];
+  // Prose with its code set as code (dotted names, snake_case names, calls) and the single
+  // letters that name keys set as keys, typed out a character at a time without losing either.
+  const TOKEN = /([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+(?:\(\))?|\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b|\b[A-Za-z_]\w*\(\))|\b([B-HJ-Z])\b(?= [a-z])/g;
+  function rich(text, n = Infinity) {
+    let html = "", i = 0, left = n;
+    const put = (part, tag) => {
+      if (left <= 0) return;
+      let p = esc(part.slice(0, left)); left -= part.length;
+      if (tag === "code") p = p.replace(/\./g, ".<wbr>");   // long dotted names break after a dot, nowhere else
+      html += tag ? `<${tag}>${p}</${tag}>` : p;
+    };
+    for (const m of text.matchAll(TOKEN)) { put(text.slice(i, m.index), ""); put(m[0], m[1] ? "code" : "kbd"); i = m.index + m[0].length; }
+    put(text.slice(i), "");
+    return html;
+  }
+  // a model's action, "Z + ← · 0.6 s", as key caps and how long they were held
+  const keycaps = a => {
+    const [keys, hold] = a.split(" · ");
+    const caps = /^\S+( \+ \S+)*$/.test(keys) ? keys.split(" + ").map(k => `<kbd>${esc(k)}</kbd>`).join('<span class="plus">+</span>') : esc(keys);
+    return `<div class="act"><div class="caps">${caps}</div>${hold ? `<span class="hold">for ${esc(hold)}</span>` : ""}</div>`;
+  };
   const typed = (text, at, dur, cls = "") => { texts.push(text); return `<p class="typed ${cls}" data-i="${texts.length - 1}" data-at="${at}" data-dur="${dur}"></p>`; };
   const chip = (html, at, cls = "") => `<span class="chip ${cls}" data-at="${at}">${html}</span>`;
   const logo = f => `<img src="assets/logos/${f}" alt="">`;
@@ -307,7 +328,7 @@ function initLoop(S, T) {
       steps: () => [
         ["Finds the game", `<img class="fill" src="${S.scout.shot}" alt=""><div class="over">${chip(logo("itchdotio.svg") + `<span>${S.scout.url}</span>`, .5)}${chip(logo("pico8.png") + "PICO-8", .8, "dark")}</div>`, 0, "media"],
         ["Reads up on it", typed(S.scout.evidence[0], 2.4, 2.6), 2.2],
-        ["Decides", `${chip(S.scout.decision, 5.6, "call")}<p class="lead" data-at="6">with tasks to build:</p><ol class="ideas">${S.scout.ideas.map((x, i) => `<li data-at="${(6.3 + i * .5).toFixed(1)}">${esc(x)}</li>`).join("")}</ol>`, 5.4],
+        ["Decides", `${chip(S.scout.decision, 5.6, "call")}<p class="lead" data-at="6">with tasks to build:</p><ol class="ideas">${S.scout.ideas.map((x, i) => `<li data-at="${(6.3 + i * .5).toFixed(1)}">${rich(x)}</li>`).join("")}</ol>`, 5.4],
       ],
     },
     builder: {
@@ -316,14 +337,14 @@ function initLoop(S, T) {
       steps: () => [
         ["Gets it running offline", `<div class="flip">${S.builder.shots.map(f => `<img src="${f}" alt="">`).join("")}</div>`, 0, "media"],
         ["Exposes its state", `<pre class="api">${S.builder.api.slice(0, 11).map((l, i) => `<span data-at="${(2.4 + i * .14).toFixed(2)}">${esc(l) || " "}</span>`).join("\n")}</pre>`, 2.2, "code"],
-        ["Checks it", `<ul class="phases">${S.builder.phases.map(([ph, , txt], i) => `<li data-at="${(5.2 + i * .9).toFixed(1)}"><b>${ph[0] + ph.slice(1).toLowerCase()}</b>${esc(txt)}</li>`).join("")}</ul>`, 5],
+        ["Checks it", `<ul class="phases">${S.builder.phases.map(([ph, , txt], i) => `<li data-at="${(5.2 + i * .9).toFixed(1)}"><b>${ph[0] + ph.slice(1).toLowerCase()}</b>${rich(txt)}</li>`).join("")}</ul>`, 5],
       ],
     },
     env: {
       what: "The game, offline and seeded, with tasks whose progress is read from the game's own state, never guessed from the screen.",
       dur: 10,
       steps: () => [
-        ["A task", `<p class="say">${esc(S.task.instruction)}</p><div class="kv"><span>progress</span><code>${esc(S.task.field)}</code><span>goal</span><code>${S.task.start} → ${S.task.target}</code></div>`, 0],
+        ["A task", `<p class="say">${rich(S.task.instruction)}</p><div class="kv"><span>progress</span><code>${esc(S.task.field)}</code><span>goal</span><code>${S.task.start} → ${S.task.target}</code></div>`, 0],
         ["Played", clip(), 1.8, "media"],
         ["Progress, read from the game", meter(), 1.8, "chart"],
       ],
@@ -348,8 +369,8 @@ function initLoop(S, T) {
       fill(root, i) {
         const st = S.vlm.steps[i], seen = root.querySelector(".seen");
         seen.style.cssText = sprite(st.k, seen.clientWidth, seen.clientHeight);
-        const th = root.querySelector(".thought"); th.dataset.text = st.text; th.dataset.at = .6; th.dataset.dur = 1.3; th.classList.add("typed"); th.textContent = "";
-        root.querySelector(".press").innerHTML = st.act.map(a => `<span class="key">${esc(a)}</span>`).join("");
+        const th = root.querySelector(".thought"); th.dataset.text = st.text; th.dataset.at = .6; th.dataset.dur = 1.3; th.classList.add("typed"); th.textContent = ""; delete th.dataset.n;
+        root.querySelector(".press").innerHTML = st.act.map(keycaps).join("");
       },
     },
     reports: {
@@ -363,8 +384,8 @@ function initLoop(S, T) {
       fill(root, i) {
         const r = S.reports[i];
         root.querySelector(".from").textContent = r.from;
-        root.querySelector(".report").textContent = r.text;
-        const ck = root.querySelector(".check"); ck.dataset.text = r.check; ck.dataset.at = 2; ck.dataset.dur = 1.6; ck.classList.add("typed"); ck.textContent = "";
+        root.querySelector(".report").innerHTML = rich(r.text);
+        const ck = root.querySelector(".check"); ck.dataset.text = r.check; ck.dataset.at = 2; ck.dataset.dur = 1.6; ck.classList.add("typed"); ck.textContent = ""; delete ck.dataset.n;
         root.querySelector(".verdict").innerHTML = `<span class="badge ${i ? "ok" : "no"}" data-at="4.2">${esc(r.outcome)}</span>`;
       },
     },
@@ -387,7 +408,7 @@ function initLoop(S, T) {
     const st = STORY[k];
     steps = st.steps();
     panel.dataset.k = k;
-    panel.innerHTML = `<div class="lp-head"><span class="ic"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span><h3>${NAME[k]}</h3><p>${esc(st.what)}</p></div>
+    panel.innerHTML = `<div class="lp-head"><span class="ic"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span><h3>${NAME[k]}</h3><p>${rich(st.what)}</p></div>
       <div class="board">
         <ol class="rail">${steps.map(([title], i) => `<li><b>${i + 1}</b><span>${esc(title)}</span>${i < 2 ? "<i></i>" : ""}</li>`).join("")}</ol>
         <div class="cards">${steps.map(([, html, , cls]) => `<div class="card ${cls || ""}">${html}</div>`).join("")}</div>
@@ -449,7 +470,7 @@ function initLoop(S, T) {
     panel.querySelectorAll(".card [data-at]").forEach(el => el.classList.toggle("in", u >= +el.dataset.at));
     panel.querySelectorAll(".typed").forEach(el => {
       const f = clamp((u - +el.dataset.at) / +el.dataset.dur, 0, 1), txt = el.dataset.text || "", n = Math.ceil(txt.length * f);
-      if (el.textContent.length !== n) el.textContent = txt.slice(0, n);
+      if (+el.dataset.n !== n) { el.dataset.n = n; el.innerHTML = rich(txt, n); }
     });
     const flip = panel.querySelector(".flip");
     if (flip) { const i = Math.floor(t / 1.1) % flip.children.length; [...flip.children].forEach((im, j) => im.classList.toggle("on", j === i)); }
@@ -478,7 +499,7 @@ function initLoop(S, T) {
   const node = k => cycle.querySelector(`.node[data-k=${k}]`);
   // Everything is placed in design units on a DW x DH board, which is then scaled as one
   // piece to fit the screen; the ring, the cards and the icons keep their proportions.
-  const DH = 414, R = 155, GAP = 52, SIDE = 46, STACK = 14;   // SIDE: sites to Scout = Data (with its stack) to library
+  const DH = 424, R = 170, GAP = 72, SIDE = 40;   // SIDE: sites to Scout = Data to library
   let DW = 1300;   // set by layout() to just hold both sides
   // The library: a framed window, two episodes wide and four rows tall, onto a list that keeps
   // growing; when the bottom row is full the rows slide up and the top one leaves the window.
@@ -486,14 +507,13 @@ function initLoop(S, T) {
   LIB.w = LIB.cols * (LIB.cw + LIB.gap) - LIB.gap + 2 * LIB.pad; LIB.h = LIB.rows * (LIB.ch + LIB.gap) - LIB.gap + 2 * LIB.pad; LIB.step = LIB.ch + LIB.gap;
   const HEAP_W = LIB.w;
   function layout() {
-    const box = $("#cycle-box"), stage = cycle.closest(".pin-stage"), group = $("#pgroup");
-    const size = el => [el.offsetWidth / 2, el.offsetHeight / 2];
-    const [bw, bh] = size(node("builder")), [ew] = size(node("env")), [gw, gh] = size(group), [rw] = size(node("reports"));
-    const [sw] = size(node("scout")), [dw] = size(node("data"));
-    // the board is as wide as its longer side needs, twice, so the ring stays in the middle
-    const left = R + bw + GAP + 2 * sw + SIDE + HEAP_W, right = R + gw + GAP + 2 * dw + STACK + SIDE + LIB.w;
-    DW = Math.round(2 * Math.max(left, right) + 36);
-    const availW = Math.min(innerWidth - 40, 1600), availH = innerHeight - offsetIn(box, stage) - panel.offsetHeight - 18 - 26;
+    const box = $("#cycle-box"), stage = cycle.closest(".pin-stage");
+    // the single stages share one size (set in the stylesheet); the players' frame is larger
+    const size = el => [el.offsetWidth / 2, el.offsetHeight / 2], group = $("#pgroup");
+    const [nw, nh] = size(node("builder")), [gw, gh] = size(group);
+    // the board is as wide as its wider side needs, twice, so the ring stays in the middle
+    DW = Math.round(2 * (R + Math.max(nw, gw) + GAP + 2 * nw + SIDE + HEAP_W) + 12);
+    const availW = box.offsetWidth, availH = innerHeight - offsetIn(box, stage) - panel.offsetHeight - 18 - 26;
     const k = clamp(Math.min(availW / DW, availH / DH), .55, 1.12);
     cycle.style.width = DW + "px"; cycle.style.height = DH + "px"; cycle.style.transform = `translateX(-50%) scale(${k})`;
     box.style.height = Math.round(DH * k) + "px";
@@ -502,26 +522,28 @@ function initLoop(S, T) {
     const dpr = (devicePixelRatio || 1) * k;
     canvas.width = Math.round(DW * dpr); canvas.height = Math.round(DH * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const cx = DW / 2, cy = DH / 2;
-    const sx = cx - R - bw - GAP - sw, dx = cx + R + gw + GAP + dw;
-    G = { W: DW, H: DH, cx, cy, sx, dx, sL: sx - sw, dR: dx + dw };
+    const sx = cx - R - nw - GAP - nw, dx = cx + R + gw + GAP + nw;
+    G = { W: DW, H: DH, cx, cy, sx, dx, sL: sx - nw, dR: dx + nw };
     const place = (el, x, y) => { el.style.left = x + "px"; el.style.top = y + "px"; };
     place(node("scout"), sx, cy); place(node("builder"), cx - R, cy); place(node("env"), cx, cy - R);
     place(group, cx + R, cy); place(node("reports"), cx, cy + R); place(node("data"), dx, cy);
-    // the sites end SIDE short of the Scout; the library starts SIDE past the Data and its stack
+    // the sites end SIDE short of the Scout; the library starts SIDE past the Data
     G.heap = heap([...cycle.querySelectorAll(".logo")], G.sL - SIDE - HEAP_W, G.sL - SIDE, cy, 44);
     const reach = Math.max(...G.heap.map(c => c.x + c.w / 2)), shift = G.sL - SIDE - reach;
     G.heap.forEach(c => { c.x += shift; place(c.el, c.x, c.y); });
-    G.lib = { x: G.dR + STACK + SIDE, y: cy - LIB.h / 2 };
+    G.lib = { x: G.dR + SIDE, y: cy - LIB.h / 2 };
     if (!lib.rows.length) {   // start part full
       const any = () => Math.floor(Math.random() * T.games.length);
       lib.rows = [[any(), any()], [any(), any()], [any(), any()], [any(), -1]];
     }
-    // where each card leaves the ring, in degrees either side of its own angle
-    const edge = (half, pad = 8) => Math.asin(Math.min(1, (half + pad) / R)) * 180 / Math.PI;
+    // Where the ring clears a box, in degrees either side of its angle: past the top or bottom
+    // edge of the Builder (a) and of the players' frame (g), past the sides of the boxes above
+    // and below (b). Each arrow takes the colour of the stage it leaves.
+    const PAD = 12, edge = half => Math.asin(Math.min(1, (half + PAD) / R)) * 180 / Math.PI;
+    const a = edge(nh), b = edge(nw), g = edge(gh);
     G.arcs = [   // [from, to] in screen degrees, clockwise, and the colour
-      [180 + edge(bh), 270 - edge(ew), RGB_TEAL], [270 + edge(ew), 360 - edge(gh), RGB_BLUE],
-      [edge(gh), 90 - edge(rw), RGB_ORANGE], [90 + edge(rw), 180 - edge(bh), RGB_ORANGE]];
-    G.links = [[sx + sw + 8, cx - R - bw - 8, RGB_TEAL], [cx + R + gw + 8, dx - dw - 8, RGB_BLUE]];
+      [180 + a, 270 - b, RGB_TEAL], [270 + b, 360 - g, RGB_TEAL], [g, 90 - b, RGB_BLUE], [90 + b, 180 - a, RGB_ORANGE]];
+    G.links = [[sx + nw + PAD, cx - R - nw - PAD, RGB_GREY], [cx + R + gw + PAD, dx - nw - PAD, RGB_BLUE]];
     const line = (x0, x1) => Array.from({ length: 40 }, (_, i) => [x0 + (x1 - x0) * i / 39, cy]);
     const arc = (a0, a1) => Array.from({ length: 160 }, (_, i) => { const a = (a0 + (a1 - a0) * i / 159) * Math.PI / 180; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
     G.paths = { feed: line(sx, cx - R), top: arc(180, 360), back: arc(0, 180), out: line(cx + R, dx), ring: arc(180, 540) };
@@ -545,19 +567,18 @@ function initLoop(S, T) {
   function drawLib() {
     const { x, y } = G.lib;
     ctx.save();
-    ctx.shadowColor = "rgba(23,40,55,.08)"; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(x, y, LIB.w, LIB.h, 12); ctx.fill();
-    ctx.shadowColor = "transparent"; ctx.strokeStyle = "#e3e8ee"; ctx.lineWidth = 1; ctx.stroke();
-    ctx.beginPath(); ctx.roundRect(x + 1, y + 1, LIB.w - 2, LIB.h - 2, 11); ctx.clip();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(x, y, LIB.w, LIB.h, 6); ctx.fill();
+    ctx.strokeStyle = "#4b5563"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(x + 1, y + 1, LIB.w - 2, LIB.h - 2, 5); ctx.clip();
     lib.rows.forEach((row, r) => row.forEach((gi, c) => {
       const [cx, cy] = cellAt(lib.base + r, c), x0 = cx - LIB.cw / 2, y0 = cy - LIB.ch / 2;
       if (y0 > y + LIB.h || y0 + LIB.ch < y) return;
-      if (gi < 0) { ctx.fillStyle = "#eef1f4"; ctx.beginPath(); ctx.roundRect(x0, y0, LIB.cw, LIB.ch, 4); ctx.fill(); return; }
-      ctx.save(); ctx.beginPath(); ctx.roundRect(x0, y0, LIB.cw, LIB.ch, 4); ctx.clip();
+      if (gi < 0) { ctx.strokeStyle = "#cdd4dc"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.roundRect(x0 + .5, y0 + .5, LIB.cw - 1, LIB.ch - 1, 3); ctx.stroke(); ctx.setLineDash([]); return; }
+      ctx.save(); ctx.beginPath(); ctx.roundRect(x0, y0, LIB.cw, LIB.ch, 3); ctx.clip();
       if (wall.complete && wall.naturalWidth) ctx.drawImage(wall, (gi % COLS) * TW, Math.floor(gi / COLS) * TH, TW, TH, x0, y0, LIB.cw, LIB.ch);
       ctx.restore();
       const age = clock - (lib.flash[`${lib.base + r},${c}`] ?? -9);
-      if (age < .6) { ctx.strokeStyle = `rgba(${RGB_BLUE},${(1 - age / .6).toFixed(3)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(x0 - 1.5, y0 - 1.5, LIB.cw + 3, LIB.ch + 3, 5); ctx.stroke(); }
+      if (age < .6) { ctx.strokeStyle = `rgba(${RGB_BLUE},${(1 - age / .6).toFixed(3)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(x0 - 1.5, y0 - 1.5, LIB.cw + 3, LIB.ch + 3, 4); ctx.stroke(); }
     }));
     // the rows fade out at the window's top and in at its bottom
     [[y, y + 16], [y + LIB.h, y + LIB.h - 16]].forEach(([a, b]) => {
@@ -571,36 +592,34 @@ function initLoop(S, T) {
     const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
     return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, Math.atan2(y1 - y0, x1 - x0)];
   }
-  const RGB_TEAL = "35,128,107", RGB_BLUE = "61,111,176", RGB_ORANGE = "221,107,32";
-  // Wide arrows, faint at the tail and stronger towards the head.
-  const BODY = 26, HEAD_L = 22, HEAD_W = 46, A0 = .05, A1 = .3;
+  const RGB_TEAL = "35,128,107", RGB_BLUE = "61,111,176", RGB_ORANGE = "221,107,32", RGB_GREY = "75,85,99";
+  // Block arrows drawn like the boxes: a pale solid fill inside a 1.5px rule in the colour of
+  // the stage the arrow leaves, corners slightly rounded.
+  const BODY = 26, HEAD_L = 24, HEAD_W = 48;
+  const ARROW = { [RGB_TEAL]: ["#23806b", "#e2f2ed"], [RGB_BLUE]: ["#3d6fb0", "#e7eff9"], [RGB_ORANGE]: ["#b4581d", "#fbeadd"], [RGB_GREY]: ["#4b5563", "#eef1f4"] };
+  function paint(rgb) {
+    const [line, fill] = ARROW[rgb];
+    ctx.save(); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = line; ctx.lineWidth = 1.5; ctx.lineJoin = "round"; ctx.stroke(); ctx.restore();
+  }
   function arcArrow(a0, a1, rgb) {
-    const r0 = a0 * Math.PI / 180, r1 = a1 * Math.PI / 180, hl = HEAD_L / R, span = r1 - r0;
-    const g = ctx.createConicGradient ? ctx.createConicGradient(r0, G.cx, G.cy) : null;
-    if (g) { g.addColorStop(0, `rgba(${rgb},${A0})`); g.addColorStop(Math.min(1, span / (2 * Math.PI)), `rgba(${rgb},${A1})`); g.addColorStop(1, `rgba(${rgb},${A0})`); }
-    ctx.save();
-    ctx.strokeStyle = g || `rgba(${rgb},${(A0 + A1) / 2})`; ctx.lineWidth = BODY; ctx.lineCap = "butt";
-    ctx.beginPath(); ctx.arc(G.cx, G.cy, R, r0, r1 - hl); ctx.stroke();
+    const r0 = a0 * Math.PI / 180, r1 = a1 * Math.PI / 180, hl = HEAD_L / R;
     const at = (a, rr) => [G.cx + rr * Math.cos(a), G.cy + rr * Math.sin(a)];
-    ctx.fillStyle = `rgba(${rgb},${A1})`; ctx.beginPath();
-    ctx.moveTo(...at(r1 - hl, R - HEAD_W / 2)); ctx.lineTo(...at(r1, R)); ctx.lineTo(...at(r1 - hl, R + HEAD_W / 2)); ctx.closePath(); ctx.fill();
-    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(G.cx, G.cy, R + BODY / 2, r0, r1 - hl);
+    ctx.lineTo(...at(r1 - hl, R + HEAD_W / 2)); ctx.lineTo(...at(r1, R)); ctx.lineTo(...at(r1 - hl, R - HEAD_W / 2));
+    ctx.arc(G.cx, G.cy, R - BODY / 2, r1 - hl, r0, true);
+    ctx.closePath(); paint(rgb);
   }
   function lineArrow(x0, x1, rgb) {
-    const y = G.cy, g = ctx.createLinearGradient(x0, 0, x1, 0);
-    g.addColorStop(0, `rgba(${rgb},${A0})`); g.addColorStop(1, `rgba(${rgb},${A1})`);
-    ctx.save(); ctx.fillStyle = g; ctx.fillRect(x0, y - BODY / 2, x1 - HEAD_L - x0, BODY);
-    ctx.fillStyle = `rgba(${rgb},${A1})`; ctx.beginPath();
-    ctx.moveTo(x1 - HEAD_L, y - HEAD_W / 2); ctx.lineTo(x1, y); ctx.lineTo(x1 - HEAD_L, y + HEAD_W / 2); ctx.closePath(); ctx.fill();
-    ctx.restore();
+    const y = G.cy, h = BODY / 2, hw = HEAD_W / 2, xh = x1 - HEAD_L;
+    ctx.beginPath(); ctx.moveTo(x0, y - h); ctx.lineTo(xh, y - h); ctx.lineTo(xh, y - hw); ctx.lineTo(x1, y);
+    ctx.lineTo(xh, y + hw); ctx.lineTo(xh, y + h); ctx.lineTo(x0, y + h); ctx.closePath(); paint(rgb);
   }
   function thumb(gi, x, y, w, h, s = 1, border = null) {
     ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-    ctx.shadowColor = "rgba(23,40,55,.25)"; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, 4); ctx.fill();
-    ctx.shadowColor = "transparent";
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(-w / 2 - 2.5, -h / 2 - 2.5, w + 5, h + 5, 3.5); ctx.fill();
     if (wall.complete && wall.naturalWidth) ctx.drawImage(wall, (gi % COLS) * TW, Math.floor(gi / COLS) * TH, TW, TH, -w / 2, -h / 2, w, h);
-    if (border) { ctx.strokeStyle = border; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, 4); ctx.stroke(); }
+    ctx.strokeStyle = border || "#5b6470"; ctx.lineWidth = border ? 2 : 1; ctx.stroke();
     ctx.restore();
   }
 
@@ -632,8 +651,6 @@ function initLoop(S, T) {
     if (!running) return;
     const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
     ctx.clearRect(0, 0, G.W, G.H);
-    // the whole ring, faintly, under the arrows that run round it
-    ctx.save(); ctx.strokeStyle = "rgba(61,111,176,.045)"; ctx.lineWidth = BODY; ctx.beginPath(); ctx.arc(G.cx, G.cy, R, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     G.arcs.forEach(([a0, a1, rgb]) => arcArrow(a0, a1, rgb));
     G.links.forEach(([x0, x1, rgb]) => lineArrow(x0, x1, rgb));
     stepLib(dt);
