@@ -15,7 +15,6 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const fmt = n => n.toLocaleString("en-US");
 const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-const stripLinks = s => String(s).replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const sources = mp4 => `<source src="${mp4}" type="video/mp4"><source src="${mp4.replace(/\.mp4$/, ".webm")}" type="video/webm">`;
 function setVideo(video, mp4) { video.removeAttribute("src"); video.innerHTML = sources(mp4); video.load(); }
@@ -28,12 +27,12 @@ function fit(canvas, cssH) {
   return { ctx, w, h };
 }
 const load = p => fetch(p).then(r => r.json());
-Promise.all(["assets/tiles.json", "assets/data.json", "assets/pipeline.json", "assets/policy/index.json", "assets/loop.json"].map(load))
-  .then(([tiles, data, pipe, policies, loop]) => {
+Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json"].map(load))
+  .then(([tiles, data, stories, policies]) => {
     initIntro(tiles, data);
-    initLoop(loop, pipe);
+    initLoop(stories, tiles);
     initExamples(data.replays);
-    initPolicies(policies);
+    initPlayers(policies);
   });
 
 /* ============ opening wall -> games ============ */
@@ -58,7 +57,7 @@ function initIntro(T, data) {
     cctx.drawImage(src, 0, 0); copied = src; copiedAt = video.currentTime;
     return true;
   }
-  games.forEach((g, i) => { g.i = i; g.cur = {}; });
+  games.forEach((g, i) => { g.i = i; g.cur = {}; g.zoom = 0; g.vel = 0; g.touched = 0; });
 
   const genres = new Set(), engines = new Set();
   Object.keys(data.matrix).forEach(k => { const [e, g] = k.split("|"); engines.add(e); genres.add(g); });
@@ -66,8 +65,10 @@ function initIntro(T, data) {
   $("#bignums").innerHTML = [[fmt(t.games), "games"], [fmt(t.tasks), "tasks"], [genres.size, "genres"], [engines.size, "engines"],
     [fmt(t.episodes), "policy episodes"], [fmt(t.hours), "hours of play"]].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("");
 
-  let W, H, ctx, wall, groups, group = "genre", switching = null, hover = -1, p = 0, panX = 0, panY = 0, frozen = null, last = performance.now();
-  const DIR = [Math.cos(.47), Math.sin(.47)];
+  let W, H, ctx, wall, groups, group = "genre", switching = null, hover = -1, p = 0, panX = 0, panY = 0, drift = 0, frozen = null, last = performance.now();
+  // The wall drifts at a constant speed; its heading turns all the way round about every
+  // 90 s, swaying a little on the way, so it wanders in every direction without repeating.
+  const SPEED = 27.5, heading = t => .47 + t * 2 * Math.PI / 90 + .8 * Math.sin(t * 2 * Math.PI / 37);
 
   function layoutWall() {
     const w = clamp(W / 11.5, 112, 168), h = w * 9 / 16, g = 6;
@@ -111,7 +112,7 @@ function initIntro(T, data) {
     if (!running) return;
     const dt = Math.min(.1, (now - last) / 1000); last = now;
     const holding = p <= .1;
-    if (holding && !reduce) { panX += DIR[0] * 22 * dt; panY += DIR[1] * 22 * dt; frozen = null; }
+    if (holding && !reduce) { drift += dt; const a = heading(drift); panX += Math.cos(a) * SPEED * dt; panY += Math.sin(a) * SPEED * dt; frozen = null; }
     else if (!holding && !frozen) frozen = [panX, panY];
     const [ox, oy] = frozen || [panX, panY];
     const m = ease(clamp((p - .1) / .5, 0, 1)), target = groups[group];
@@ -132,7 +133,9 @@ function initIntro(T, data) {
     }
     for (const c of wall.cells) {
       const g = games[c.gi];
-      const ax = wrap(c.x - ox, wall.spanX) - (wall.w + wall.g), ay = wrap(c.y - oy, wall.spanY) - (wall.h + wall.g);
+      // the wall is wider and taller than the screen; the screen shows its middle, so the
+      // tiles that fly in when it regroups come from every side
+      const ax = wrap(c.x - ox, wall.spanX) - (wall.spanX - W) / 2, ay = wrap(c.y - oy, wall.spanY) - (wall.spanY - H) / 2;
       let b = target.pos[c.gi];
       if (switching) { const f = groups[switching.from].pos[c.gi], e = ease(switching.t); b = { x: f.x + (b.x - f.x) * e, y: f.y + (b.y - f.y) * e, w: f.w + (b.w - f.w) * e }; }
       if (c.ghost) {               // repeated cells only fill the wall; they fade instead of flying
@@ -146,12 +149,48 @@ function initIntro(T, data) {
       tile(c.gi, cur.x, cur.y, cur.w);
       if (m > .98) { ctx.strokeStyle = (group === "engine" ? ENGINE[g.engine] : GENRE[g.genre]) || INK3; ctx.lineWidth = 1; ctx.strokeRect(cur.x + .5, cur.y + .5, cur.w - 1, cur.h - 1); }
     }
-    if (ready && hover >= 0 && m > .98) {
-      const c = games[hover].cur, w = c.w * 2.3, x = c.x + c.w / 2 - w / 2, y = c.y + c.h / 2 - w * 9 / 32;
-      tile(hover, x, y, w); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, w * 9 / 16);
-    }
+    // A hovered tile grows into the preview itself; the ones left behind shrink back more
+    // slowly, so a quick sweep leaves a tail behind the pointer. Each zoom follows a
+    // critically damped spring: its speed changes smoothly and it never overshoots. The
+    // hovered tile is drawn last, the trail under it from oldest to newest.
+    const zoomed = [];
+    games.forEach(g => {
+      const on = g.i === hover && m > .98;
+      if (on) g.touched = now;
+      spring(g, on ? 1 : 0, on ? 18 : 10, dt);
+      if (g.zoom > .003 || on) zoomed.push(g); else { g.zoom = 0; g.vel = 0; }
+    });
+    zoomed.sort((a, b) => (a.i === hover) - (b.i === hover) || a.touched - b.touched);
+    let shown = null;
+    zoomed.forEach(g => {
+      const r = zoomRect(g), head = g.i === hover;
+      if (head) shown = r;
+      if (!ready || r.z <= 0) return;
+      ctx.save();
+      ctx.shadowColor = `rgba(31, 35, 40, ${(.3 * r.z).toFixed(3)})`; ctx.shadowBlur = 22 * r.z; ctx.shadowOffsetY = 6 * r.z;
+      tile(g.i, r.x, r.y, r.w);
+      ctx.restore();
+    });
+    if (shown) {
+      tip.style.transform = `translate(${shown.x}px, ${shown.y}px)`; tip.style.width = shown.w + "px";
+      tip.style.opacity = clamp((shown.z - .55) / .4, 0, 1).toFixed(3);
+    } else tip.style.opacity = 0;
     if (switching) { switching.t = Math.min(1, switching.t + dt / .9); if (switching.t >= 1) switching = null; }
     requestAnimationFrame(draw);
+  }
+  // Critically damped spring toward `target` with angular frequency `w`, solved exactly for
+  // the frame's dt, so a long frame cannot make it jump.
+  function spring(g, target, w, dt) {
+    const x = g.zoom - target, k = g.vel + w * x, e = Math.exp(-w * dt);
+    g.zoom = target + (x + k * dt) * e;
+    g.vel = (g.vel - w * k * dt) * e;
+  }
+  // From the tile's own place to a 320px preview over it, kept inside the screen.
+  const BIG = 320;
+  function zoomRect(g) {
+    const c = g.cur, z = clamp(g.zoom, 0, 1), bh = BIG * 9 / 16;
+    const bx = clamp(c.x + c.w / 2 - BIG / 2, 8, W - BIG - 8), by = clamp(c.y + c.h / 2 - bh / 2, 8, H - bh - 64);
+    return { x: c.x + (bx - c.x) * z, y: c.y + (by - c.y) * z, w: c.w + (BIG - c.w) * z, z };
   }
   function tile(gi, x, y, w) {
     const h = w * 9 / 16;
@@ -164,8 +203,11 @@ function initIntro(T, data) {
     const f = clamp((p - .1) / .15, 0, 1);
     band.style.opacity = 1 - f; band.style.transform = `translate(-50%, calc(-50% - ${f * 40}px))`;
     head.style.opacity = clamp((p - .5) / .12, 0, 1); head.classList.toggle("live", p > .6);
-    if (p < .6 && hover >= 0) { hover = -1; tip.classList.remove("on"); tipVideo.pause(); }
+    if (p < .6 && hover >= 0) leave();
   }
+  // The name shows at once; the preview clip loads only once the pointer rests on a tile.
+  let clipTimer = 0;
+  function leave() { hover = -1; canvas.classList.remove("over"); clearTimeout(clipTimer); tipVideo.pause(); }
   $("#group-seg").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b || b.dataset.g === group) return;
     document.querySelectorAll("#group-seg button").forEach(x => x.classList.toggle("on", x === b));
@@ -177,14 +219,17 @@ function initIntro(T, data) {
     let hit = -1;
     games.forEach(g => { const c = g.cur; if (mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h) hit = g.i; });
     if (hit !== hover) {
-      hover = hit;
-      if (hit >= 0) { const g = games[hit]; setVideo(tipVideo, `assets/clips/${g.id}.mp4`); tipVideo.play().catch(() => {}); $("#tip-title").textContent = g.title; $("#tip-meta").textContent = `${g.genre} · ${g.engine}`; }
-      else tipVideo.pause();
+      hover = hit; clearTimeout(clipTimer); tipVideo.pause(); tipVideo.style.visibility = "hidden";
+      if (hit >= 0) {
+        const g = games[hit];
+        $("#tip-title").textContent = g.title; $("#tip-meta").textContent = `${g.genre} · ${g.engine}`;
+        clipTimer = setTimeout(() => { setVideo(tipVideo, `assets/clips/${g.id}.mp4`); tipVideo.play().catch(() => {}); }, 160);
+      }
     }
-    tip.classList.toggle("on", hit >= 0);
-    if (hit >= 0) { tip.style.left = (mx + 340 > W ? mx - 340 : mx + 20) + "px"; tip.style.top = clamp(my - 100, 10, H - 250) + "px"; }
+    canvas.classList.toggle("over", hit >= 0);
   });
-  canvas.addEventListener("mouseleave", () => { hover = -1; tip.classList.remove("on"); tipVideo.pause(); });
+  canvas.addEventListener("mouseleave", leave);
+  tipVideo.addEventListener("playing", () => tipVideo.style.visibility = "");
   addEventListener("scroll", onScroll, { passive: true });
   addEventListener("resize", resize);
   // Off screen the wall stops: no decoding, no drawing.
@@ -196,201 +241,433 @@ function initIntro(T, data) {
 }
 
 /* ============ the loop ============ */
-// Small SVG charts at the card's pixel width. One series is one colour; the highlighted
-// part is the accent; ordered parts take the gray ramp. Values sit at the bar tips.
-const RAMP = ["#1f4e79", "#3b6ea8", "#6f9bcb", "#93b5da"];
-const bar = (x0, y, x1, h) => {        // square at the baseline, 4px round at the data end
-  const r = Math.min(4, h / 2, Math.max(0, x1 - x0));
-  return `M${x0} ${y}H${x1 - r}Q${x1} ${y} ${x1} ${y + r}V${y + h - r}Q${x1} ${y + h} ${x1 - r} ${y + h}H${x0}Z`;
-};
-const col = (x, y0, w, y1) => {         // a column growing up from y0 to y1
-  const r = Math.min(4, w / 2, Math.max(0, y0 - y1));
-  return `M${x} ${y0}V${y1 + r}Q${x} ${y1} ${x + r} ${y1}H${x + w - r}Q${x + w} ${y1} ${x + w} ${y1 + r}V${y0}Z`;
-};
-const charts = {
-  hbars(items, w, { hi = [], fmt = v => fmt0(v) } = {}) {
-    // labels are 12px Libre Franklin: about 6.4px a character
-    const labelW = Math.max(...items.map(d => String(d[0]).length)) * 6.4 + 14;
-    const max = Math.max(...items.map(d => d[1])), x1 = w - 52, rowH = 24;
-    const rows = items.map(([k, v], i) => {
-      const y = i * rowH, end = labelW + Math.max(2, (x1 - labelW) * v / max);
-      return `<g><title>${esc(k)}: ${fmt(v)}</title><text x="0" y="${y + 13}">${esc(k)}</text>
-        <path class="m${hi.includes(i) ? " hi" : ""}" d="${bar(labelW, y + 4, end, 12)}" fill="${hi.includes(i) ? ACCENT : BLUE}"/>
-        <text class="v" x="${end + 6}" y="${y + 14}">${fmt(v)}</text></g>`;
-    }).join("");
-    return `<svg height="${items.length * rowH}">${rows}</svg>`;
-  },
-  stack(items, w, { colors = RAMP, label = null } = {}) {
-    const total = items.reduce((a, d) => a + d[1], 0), gap = 2, y = label ? 18 : 0;
-    let x = 0;
-    const segs = items.map(([k, v], i) => {
-      const sw = Math.max(1, w * v / total - (i < items.length - 1 ? gap : 0)), s = `<rect class="s s${i}${colors[i] === ACCENT ? " hi" : ""}" x="${x}" y="${y}" width="${sw}" height="14" fill="${colors[i]}"><title>${esc(k)}: ${fmt0(v)}</title></rect>`;
-      x += sw + gap; return s;
-    }).join("");
-    const legend = items.map(([k, v], i) => `<g transform="translate(${(i % 2) * w / 2}, ${y + 34 + Math.floor(i / 2) * 20})"><rect class="s s${i}${colors[i] === ACCENT ? " hi" : ""}" y="-9" width="10" height="10" fill="${colors[i]}"/>
-      <text x="16">${esc(k)}</text><text class="v" x="${w / 2 - 14}" text-anchor="end">${fmt0(v)}</text></g>`).join("");
-    return `<svg height="${y + 30 + Math.ceil(items.length / 2) * 20}">${label ? `<text x="0" y="11">${esc(label)}</text>` : ""}${segs}${legend}</svg>`;
-  },
-  columns(items, w, { hi = [], h = 150 } = {}) {
-    const max = Math.max(...items.map(d => d[1])), slot = w / items.length, cw = Math.min(24, slot * .6), base = h - 18;
-    const cols = items.map(([k, v], i) => {
-      const x = i * slot + (slot - cw) / 2, top = base - (base - 16) * v / max;
-      return `<g><title>${esc(k)}: ${fmt0(v)}</title><path class="m${hi.includes(i) ? " hi" : ""}" d="${col(x, base, cw, v ? top : base)}" fill="${hi.includes(i) ? ACCENT : BLUE}"/>
-        <text class="v" x="${x + cw / 2}" y="${top - 5}" text-anchor="middle">${fmt0(v)}</text>
-        <text x="${x + cw / 2}" y="${h - 3}" text-anchor="middle">${esc(k)}</text></g>`;
-    }).join("");
-    return `<svg height="${h}"><line class="base" x1="0" x2="${w}" y1="${base + .5}" y2="${base + .5}" stroke="${RULE}"/>${cols}</svg>`;
-  },
-  waffle(total, hi, w, { cols = 25 } = {}) {
-    const s = Math.floor(w / cols) - 2, step = s + 2, rows = Math.ceil(total / cols);
-    const cells = Array.from({ length: total }, (_, i) => `<rect x="${(i % cols) * step}" y="${Math.floor(i / cols) * step}" width="${s}" height="${s}" rx="1.5" class="wf${i < hi ? " hi" : ""}" fill="${i < hi ? BLUE : "#e3e8ee"}"/>`).join("");
-    return `<svg height="${rows * step}">${cells}</svg>`;
-  },
-};
-const fmt0 = v => typeof v === "number" ? (Number.isInteger(v) ? fmt(v) : String(v)) : String(v);
-const pct = v => Math.round(v * 100) + "%";
-
-function initLoop(L, P) {
-  const flow = $("#flow"), svg = $("#wires"), panel = $("#loop-panel");
+// The loop: Builder, Environment, the two players and their Reports on a ring of wide arrows;
+// the Scout in front of it, drawing from the sites the games come from; the data after it, a
+// window onto a growing library of episodes. Real games ride the arrows: out of the sites,
+// through the Scout and the Builder, over to the players, then into the library or round again.
+// Below the drawing, what the chosen stage does, played out on one game from its records.
+function initLoop(S, T) {
+  const cycle = $("#cycle"), canvas = $("#cycle-fx"), panel = $("#loop-panel");
   const ICON = {
-    scout: '<circle cx="12" cy="12" r="7"/><path d="M17 17L23 23"/>',
-    builder: '<path d="M4 9L14 4L24 9V19L14 24L4 19Z M4 9L14 14L24 9 M14 14V24"/>',
-    vlm: '<path d="M2 14C6 7 22 7 26 14C22 21 6 21 2 14Z"/><circle cx="14" cy="14" r="3.5"/>',
-    policy: '<path d="M9 8L3 14L9 20 M19 8L25 14L19 20 M16 6L12 22"/>',
-    data: '<rect x="4" y="5" width="20" height="18" rx="1"/><path d="M4 10H24 M4 18H24 M9 5V10 M14 5V10 M19 5V10 M9 18V23 M14 18V23 M19 18V23"/>',
+    scout: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" opacity=".5"/><g class="sweep"><path d="M12 12L12 3"/></g><circle cx="16.5" cy="8" r="1.2" fill="currentColor" stroke="none"/>',
+    builder: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
+    env: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8.5h18M8.5 14.5l2.3 2.3 4.7-4.7"/>',
+    policy: '<path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>',
+    vlm: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    reports: '<path d="M4 4.5h16v11H11l-4.5 4v-4H4z"/><path d="M12 7.5v4M12 13.8v.1"/>',
+    data: '<path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   };
-  const D = L.data, vlmEpisodes = D.vlm.reduce((a, m) => a + m.episodes, 0);
-  const sum = items => items.reduce((a, d) => a + d[1], 0);
-  const stages = {
+  const NAME = { scout: "Scout", builder: "Builder", env: "Environment", policy: "Coding Player", vlm: "VLM Player", reports: "Reports", data: "Data" };
+  cycle.querySelectorAll(".node").forEach(n => {
+    n.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24">${ICON[n.dataset.k]}</svg></span>${NAME[n.dataset.k]}`;
+  });
+  // where the games were found
+  const LOGOS = [["itchdotio.svg", "itch.io"], ["armorgames.png", "Armor Games"], ["newgrounds.png", "Newgrounds"],
+    ["kongregate.svg", "Kongregate"], ["nitrome.png", "Nitrome"], ["github.svg", "GitHub"]];
+  // A narrow column of cards in front of the Scout, as wide as the library behind the Data:
+  // one card a row, each pushed a little left or right (x as a share of the spare width,
+  // y in rows), then nudged apart where two would cover each other.
+  const SPOTS = [[.15, -2.5], [.9, -1.5], [.05, -.5], [.95, .5], [.2, 1.5], [.85, 2.5]];
+  function heap(cards, x0, x1, cy, row) {
+    const b = cards.map(el => ({ el, w: el.firstElementChild.offsetWidth, h: el.firstElementChild.offsetHeight }));
+    b.forEach((c, i) => { c.x = x0 + c.w / 2 + SPOTS[i][0] * Math.max(0, x1 - x0 - c.w); c.y = cy + SPOTS[i][1] * row; });
+    const y0 = cy - 3.1 * row, y1 = cy + 3.1 * row, ALLOW = -3;   // a small gap at rest; the drift brings them to just touching
+    for (let it = 0; it < 200; it++) {
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const A = b[i], B = b[j], dx = B.x - A.x, dy = B.y - A.y;
+        const ox = (A.w + B.w) / 2 - Math.abs(dx) - ALLOW, oy = (A.h + B.h) / 2 - Math.abs(dy) - ALLOW;
+        if (ox <= 0 || oy <= 0) continue;
+        if (ox * .55 < oy) { const m = ox / 2 * Math.sign(dx || 1); A.x -= m; B.x += m; }
+        else { const m = oy / 2 * Math.sign(dy || 1); A.y -= m; B.y += m; }
+      }
+      b.forEach(c => { c.x = clamp(c.x, x0 + c.w / 2, Math.max(x0 + c.w / 2, x1 - c.w / 2)); c.y = clamp(c.y, y0 + c.h / 2, y1 - c.h / 2); });
+    }
+    return b;
+  }
+  $("#logos").innerHTML = LOGOS.map(([f, name], i) => `<div class="logo" style="--dx:${(6 + (i * 1.7) % 3.5).toFixed(2)}s;--dy:${(4.6 + (i * 1.3) % 2.6).toFixed(2)}s;--delay:${(-i * 1.1).toFixed(1)}s;--r0:${(((i * 37) % 5) - 3) * .6}deg;--r1:${(((i * 53) % 5) - 1) * .6}deg"><div><span class="mark"><img src="assets/logos/${f}" alt=""></span>${name}</div></div>`).join("");
+
+  // ---------- what each stage does, on one game, below the drawing. Every stage has the same
+  // layout: on the left its name and what it does; on the right a tinted board where it runs,
+  // three numbered steps along a track, each a card of the same size. The steps light up in
+  // turn; stages that run more than once (the VLM's moves, the two reports) start over.
+  const P = S.play, texts = [];
+  const typed = (text, at, dur, cls = "") => { texts.push(text); return `<p class="typed ${cls}" data-i="${texts.length - 1}" data-at="${at}" data-dur="${dur}"></p>`; };
+  const chip = (html, at, cls = "") => `<span class="chip ${cls}" data-at="${at}">${html}</span>`;
+  const logo = f => `<img src="assets/logos/${f}" alt="">`;
+  const clip = () => `<video muted playsinline preload="none">${sources(P.video)}</video>`;
+  const keyLabel = k => ({ ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓", z: "Z", x: "X" }[k] || k);
+  const sprite = (k, w, h) => { const sp = S.vlm.sprite, ch = w * sp.h / sp.w, oy = (h - ch) / 2;
+    return `background-image:url(${sp.file});background-size:${sp.cols * w}px auto;background-position:${-(k % sp.cols) * w}px ${-Math.floor(k / sp.cols) * ch + oy}px`; };
+  const meter = () => `<div class="meter"><b class="tok">0</b><span>of ${S.task.target} tokens</span></div><canvas class="pline"></canvas>`;
+  // steps: [title, card html, the time it comes in, card style]
+  const STORY = {
     scout: {
-      name: "Scout", stat: `${L.scout.games} games inspected`,
-      what: "Finds a game's playable build and its source, and judges whether it can become an environment.",
-      stats: [[L.scout.games, "games"], [`${L.scout.minutes} min`, "median per game"]],
-      cards: w => [
-        ["Decision", charts.stack(L.scout.decision, w)],
-        ["Found on", charts.hbars(L.scout.source, w)],
-        ["Outlook", charts.stack(L.scout.offline, w, { label: "runs offline" }) + charts.stack(L.scout.state, w, { label: "state readable" })],
+      what: "Looks at a game where it is published, works out how it is built and how its state could be read, and decides whether to build it.",
+      dur: 9.5,
+      steps: () => [
+        ["Finds the game", `<img class="fill" src="${S.scout.shot}" alt=""><div class="over">${chip(logo("itchdotio.svg") + `<span>${S.scout.url}</span>`, .5)}${chip(logo("pico8.png") + "PICO-8", .8, "dark")}</div>`, 0, "media"],
+        ["Reads up on it", typed(S.scout.evidence[0], 2.4, 2.6), 2.2],
+        ["Decides", `${chip(S.scout.decision, 5.6, "call")}<p class="lead" data-at="6">with tasks to build:</p><ol class="ideas">${S.scout.ideas.map((x, i) => `<li data-at="${(6.3 + i * .5).toFixed(1)}">${esc(x)}</li>`).join("")}</ol>`, 5.4],
       ],
     },
     builder: {
-      name: "Builder", stat: `${sum(L.builder.outcome.slice(0, 1))} environments built`,
-      what: "Rebuilds the game to run offline, exposes its state, writes the tasks and verifies every one.",
-      stats: [[L.builder.outcome[0][1], "built"], [L.builder.outcome[1] ? L.builder.outcome[1][1] : 0, "unsuitable"], [fmt(L.builder.tasks_total), "tasks"], [`${L.builder.minutes} min`, "median per game"]],
-      cards: w => [
-        ["Engines", charts.hbars(L.builder.engine, w)],
-        ["Tasks per game", charts.columns(L.builder.tasks, w)],
-        [`${esc(P.title)}, while being built`, `<div class="shots">${P.shots.slice(0, 6).map(x => `<img src="${x.file}" alt="" loading="lazy">`).join("")}</div>`],
+      what: "Gets the game running offline, exposes its state through game_api.js, writes the tasks and checks every one before it ships.",
+      dur: 9.5,
+      steps: () => [
+        ["Gets it running offline", `<div class="flip">${S.builder.shots.map(f => `<img src="${f}" alt="">`).join("")}</div>`, 0, "media"],
+        ["Exposes its state", `<pre class="api">${S.builder.api.slice(0, 11).map((l, i) => `<span data-at="${(2.4 + i * .14).toFixed(2)}">${esc(l) || " "}</span>`).join("\n")}</pre>`, 2.2, "code"],
+        ["Checks it", `<ul class="phases">${S.builder.phases.map(([ph, , txt], i) => `<li data-at="${(5.2 + i * .9).toFixed(1)}"><b>${ph[0] + ph.slice(1).toLowerCase()}</b>${esc(txt)}</li>`).join("")}</ul>`, 5],
       ],
     },
-    vlm: {
-      name: "VLM Player", stat: `${L.vlm.reports} reports, ${L.vlm.repairs} repairs`,
-      what: "A vision-language model plays every task from the screen. What does not work goes back to the Builder as a report.",
-      stats: [[L.vlm.reports, "reports"], [L.vlm.repairs, "repairs"], [L.vlm.games, "games now clean"]],
-      cards: w => [
-        ["First play of each game", charts.stack([["clean", L.vlm.first_clean], ["problems reported", L.vlm.reported]], w, { colors: [RAMP[3], ACCENT] })],
-        ["Reports per reported game", charts.columns(L.vlm.per_game, w)],
-        ["Check rounds by model", charts.hbars(L.vlm.models, w)],
+    env: {
+      what: "The game, offline and seeded, with tasks whose progress is read from the game's own state, never guessed from the screen.",
+      dur: 10,
+      steps: () => [
+        ["A task", `<p class="say">${esc(S.task.instruction)}</p><div class="kv"><span>progress</span><code>${esc(S.task.field)}</code><span>goal</span><code>${S.task.start} → ${S.task.target}</code></div>`, 0],
+        ["Played", clip(), 1.8, "media"],
+        ["Progress, read from the game", meter(), 1.8, "chart"],
       ],
     },
     policy: {
-      name: "Policy Author", stat: `${L.policy.outcome[0][1]} policies pass`,
-      what: "Writes a scripted policy over the exposed state. State the policy needs and cannot read goes back to the Builder as a request.",
-      stats: [[L.policy.files, "policies"], [L.policy.lines_median, "median lines"], [`${L.policy.minutes} min`, "median per game"]],
-      cards: w => [
-        ["Outcome", charts.stack(L.policy.outcome, w)],
-        ["Lines per policy", charts.columns(L.policy.lines, w)],
-        [`Asked the Builder for state: ${L.policy.asked} of ${sum(L.policy.outcome)} games`, charts.waffle(sum(L.policy.outcome), L.policy.asked, w)],
+      what: "Writes a policy in code over the exposed state and plays with it in real time. What it needs and cannot read, it asks the Builder for.",
+      dur: 10,
+      steps: () => [
+        ["Asks the Builder for", `<div class="chips col">${S.coding.fields.map((f, i) => chip(`<code>${f}</code>`, (.3 + i * .25).toFixed(2))).join("")}</div>`, 0],
+        ["Reads them in its code", `<pre class="mini">${S.coding.code.map((l, i) => `<span data-l="${i}"><i>${S.coding.first + i}</i>${esc(l) || " "}</span>`).join("")}</pre>`, 2.4, "code"],
+        ["Plays in real time", clip(), 2.4, "media"],
       ],
     },
-    data: {
-      name: "Data", stat: `${fmt(D.policy.episodes + vlmEpisodes)} episodes`,
-      what: "Policies and VLM players play the tasks again. Each episode keeps the video, the game state and every input.",
-      stats: [[fmt(D.policy.episodes + vlmEpisodes), "episodes"], [fmt(Math.round(D.policy.hours + D.vlm.reduce((a, m) => a + m.hours, 0))), "hours"]],
-      cards: w => {
-        const rows = [["Policies", D.policy], ...D.vlm.map(m => [m.model, m])];
-        return [
-          ["Episodes", charts.hbars(rows.map(([k, m]) => [k, m.episodes]), w, { hi: [0] })],
-          ["Task completed", charts.hbars(rows.map(([k, m]) => [k, m.completed]), w, { hi: [0], fmt: pct })],
-          ["Games played", charts.hbars(rows.map(([k, m]) => [k, m.games]), w, { hi: [0] })],
-        ];
+    vlm: {
+      what: "A vision-language model plays from the screen alone. The game waits while it reads the screenshot and decides on its next keys.",
+      cycle: 3.2, cases: S.vlm.steps.length, dur: 3.2 * S.vlm.steps.length,
+      steps: () => [
+        ["Sees the screen", `<div class="seen fill"><span class="paused">Game paused</span></div>`, 0, "media"],
+        [`Thinks`, `<p class="say thought"></p>`, .4],
+        ["Presses", `<div class="press"></div>`, 2.1],
+      ],
+      fill(root, i) {
+        const st = S.vlm.steps[i], seen = root.querySelector(".seen");
+        seen.style.cssText = sprite(st.k, seen.clientWidth, seen.clientHeight);
+        const th = root.querySelector(".thought"); th.dataset.text = st.text; th.dataset.at = .6; th.dataset.dur = 1.3; th.classList.add("typed"); th.textContent = "";
+        root.querySelector(".press").innerHTML = st.act.map(a => `<span class="key">${esc(a)}</span>`).join("");
       },
     },
+    reports: {
+      what: "What does not work goes back to the Builder, which checks it against the recording before it changes anything.",
+      cycle: 6.5, cases: S.reports.length, dur: 6.5 * S.reports.length,
+      steps: () => [
+        ["A report comes in", `<span class="from"></span><p class="say report"></p>`, 0],
+        ["The Builder checks it", `<p class="say check"></p>`, 1.8],
+        ["Outcome", `<div class="verdict"></div>`, 4],
+      ],
+      fill(root, i) {
+        const r = S.reports[i];
+        root.querySelector(".from").textContent = r.from;
+        root.querySelector(".report").textContent = r.text;
+        const ck = root.querySelector(".check"); ck.dataset.text = r.check; ck.dataset.at = 2; ck.dataset.dur = 1.6; ck.classList.add("typed"); ck.textContent = "";
+        root.querySelector(".verdict").innerHTML = `<span class="badge ${i ? "ok" : "no"}" data-at="4.2">${esc(r.outcome)}</span>`;
+      },
+    },
+    data: {
+      what: "Both players play the tasks again and again. Each episode keeps the video, the game state and every input, all on one clock.",
+      dur: 10,
+      steps: () => [
+        ["Video", clip(), 0, "media"],
+        ["Game state", meter(), .9, "chart"],
+        ["Inputs", `<canvas class="lanes"></canvas>`, 1.8, "chart"],
+      ],
+    },
   };
-  $("#loop-scope").textContent = `${L.games} games through the pipeline`;
-  flow.querySelectorAll(".fnode").forEach(n => {
-    const st = stages[n.dataset.k];
-    n.innerHTML = `<svg viewBox="0 0 28 28">${ICON[n.dataset.k]}</svg><b>${st.name}</b><small>${esc(st.stat)}</small>`;
-  });
-
-  // Wires: right-angle paths between the boxes' edges, corners rounded.
-  let wires = [];
-  function ortho(pts, rad = 9) {
-    let d = `M${pts[0][0]} ${pts[0][1]}`;
-    for (let i = 1; i < pts.length - 1; i++) {
-      const [x0, y0] = pts[i - 1], [x, y] = pts[i], [x1, y1] = pts[i + 1];
-      const r = Math.min(rad, Math.hypot(x - x0, y - y0) / 2, Math.hypot(x1 - x, y1 - y) / 2);
-      d += `L${x - Math.sign(x - x0) * r} ${y - Math.sign(y - y0) * r}Q${x} ${y} ${x + Math.sign(x1 - x) * r} ${y + Math.sign(y1 - y) * r}`;
-    }
-    const e = pts[pts.length - 1];
-    return d + `L${e[0]} ${e[1]}`;
-  }
-  function layoutWires() {
-    const box = flow.getBoundingClientRect();
-    const R = el => { const r = el.getBoundingClientRect(); return { l: r.left - box.left, r: r.right - box.left, t: r.top - box.top, b: r.bottom - box.top, cx: (r.left + r.right) / 2 - box.left, cy: (r.top + r.bottom) / 2 - box.top }; };
-    const n = k => R(flow.querySelector(`.fnode[data-k=${k}]`)), g = R(flow.querySelector(".fgroup"));
-    const S = n("scout"), B = n("builder"), V = n("vlm"), Pn = n("policy"), Dn = n("data");
-    const m1 = (B.r + g.l) / 2, m2 = (g.r + Dn.l) / 2, low = g.b + 26, gap = 3;
-    wires = [
-      { d: ortho([[S.r, S.cy], [B.l - gap, B.cy]]), on: ["scout", "builder"] },
-      { d: ortho([[B.r, B.cy], [m1, B.cy], [m1, V.cy], [V.l - gap, V.cy]]), on: ["builder", "vlm"] },
-      { d: ortho([[B.r, B.cy], [m1, B.cy], [m1, Pn.cy], [Pn.l - gap, Pn.cy]]), on: ["builder", "policy"] },
-      { d: ortho([[V.r, V.cy], [m2, V.cy], [m2, Dn.cy - 9], [Dn.l - gap, Dn.cy - 9]]), on: ["vlm", "data"] },
-      { d: ortho([[Pn.r, Pn.cy], [m2, Pn.cy], [m2, Dn.cy + 9], [Dn.l - gap, Dn.cy + 9]]), on: ["policy", "data"] },
-      { d: ortho([[g.cx, g.b], [g.cx, low], [B.cx, low], [B.cx, B.b + gap]]), on: ["vlm", "policy", "builder"], back: true,
-        label: [(g.cx + B.cx) / 2, low + 16, "reports and requests, repaired by the Builder"] },
-    ];
-    svg.innerHTML = `<defs>
-      <marker id="lh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1L9 5L0 9z" fill="${INK3}"/></marker>
-      <marker id="lh-on" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1L9 5L0 9z" fill="${INK}"/></marker>
-      <marker id="lh-back" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1L9 5L0 9z" fill="${ACCENT}"/></marker></defs>` +
-      wires.map((w, i) => `<path class="w${w.back ? " back" : ""}" d="${w.d}" marker-end="url(#${w.back ? "lh-back" : "lh"})"/>` +
-        (w.label ? `<text x="${w.label[0]}" y="${w.label[1]}" text-anchor="middle">${w.label[2]}</text>` : "") +
-        (reduce ? "" : `<circle class="pk${w.back ? " back" : ""}" r="2.6"><animateMotion dur="${w.back ? 3.2 : 2.2}s" begin="${(i * .37).toFixed(2)}s" repeatCount="indefinite" path="${w.d}"/></circle>`)).join("");
-    mark();
-  }
-
-  let cur = null, held = 0;
-  function mark() {
-    flow.querySelectorAll(".fnode").forEach(n => n.classList.toggle("on", n.dataset.k === cur));
-    svg.querySelectorAll(".w").forEach((p, i) => {
-      const on = wires[i].on.includes(cur) && (wires[i].back || wires[i].on.length === 2);
-      p.classList.toggle("on", on);
-      if (!wires[i].back) p.setAttribute("marker-end", `url(#${on ? "lh-on" : "lh"})`);
-    });
-  }
+  const ORDER = ["scout", "builder", "env", "policy", "vlm", "reports", "data"];
+  let cur = null, t0 = 0, held = 0, video = null, steps = [], round = -1, lastHit = "";
   function show(k) {
-    cur = k; mark(); panel.dataset.k = k;
-    const st = stages[k], w = Math.floor((panel.querySelector(".lp-cards") || panel).clientWidth / 3 - 24);
-    panel.innerHTML = `<div class="lp-head"><div><h3>${st.name}</h3><p>${esc(st.what)}</p></div>
-      <div class="lp-stats">${st.stats.map(([b, s]) => `<div><b>${typeof b === "number" ? fmt(b) : b}</b><span>${s}</span></div>`).join("")}</div></div>
-      <div class="lp-cards">${st.cards(w).map(([h, body]) => `<div class="lp-card"><h4>${h}</h4>${body}</div>`).join("")}</div>`;
+    cur = k; t0 = performance.now(); texts.length = 0; round = -1;
+    cycle.querySelectorAll(".node").forEach(n => n.classList.toggle("on", n.dataset.k === k));
+    if (video) video.pause();
+    const st = STORY[k];
+    steps = st.steps();
+    panel.dataset.k = k;
+    panel.innerHTML = `<div class="lp-head"><span class="ic"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span><h3>${NAME[k]}</h3><p>${esc(st.what)}</p></div>
+      <div class="board">
+        <ol class="rail">${steps.map(([title], i) => `<li><b>${i + 1}</b><span>${esc(title)}</span>${i < 2 ? "<i></i>" : ""}</li>`).join("")}</ol>
+        <div class="cards">${steps.map(([, html, , cls]) => `<div class="card ${cls || ""}">${html}</div>`).join("")}</div>
+      </div>`;
+    panel.querySelectorAll(".typed").forEach(el => el.dataset.text = texts[+el.dataset.i]);
+    video = panel.querySelector("video");
+    if (video) {
+      video.preload = "auto";
+      video.addEventListener("loadedmetadata", () => { video.currentTime = P.from; video.play().catch(() => {}); }, { once: true });
+      video.addEventListener("ended", () => { video.currentTime = P.from; video.play().catch(() => {}); });
+    }
   }
-  const order = ["scout", "builder", "vlm", "policy", "data"];
-  flow.querySelectorAll(".fnode").forEach(n => {
-    n.addEventListener("mouseenter", () => { held = performance.now() + 15000; show(n.dataset.k); });
-    n.addEventListener("click", () => { held = performance.now() + 30000; show(n.dataset.k); });
+  cycle.querySelectorAll(".node").forEach(n => {
+    n.addEventListener("mouseenter", () => { held = performance.now() + 15000; if (cur !== n.dataset.k) show(n.dataset.k); });
+    n.addEventListener("click", () => { held = performance.now() + 30000; if (cur !== n.dataset.k) show(n.dataset.k); });
   });
   panel.addEventListener("mouseenter", () => held = performance.now() + 15000);
-  // The panel keeps the height of its tallest stage, so switching never moves the page.
-  function settle() {
-    let tallest = 0;
-    order.forEach(k => { show(k); tallest = Math.max(tallest, panel.offsetHeight); });
-    panel.style.minHeight = tallest + "px";
+
+  // a chart canvas fills what is left of its card below whatever sits above it
+  const room = cv => Math.max(40, Math.floor(cv.parentElement.getBoundingClientRect().bottom - cv.getBoundingClientRect().top - 12));
+  function progressLine(cv, t) {
+    const { ctx: c, w, h } = fit(cv, room(cv));
+    const X = tt => tt / P.duration * w, Y = v => h - 4 - v * (h - 10);
+    c.strokeStyle = "#dde3ea"; c.lineWidth = 1; c.beginPath(); c.moveTo(0, h - 3.5); c.lineTo(w, h - 3.5); c.stroke();
+    c.strokeStyle = BLUE; c.lineWidth = 2; c.beginPath(); c.moveTo(0, Y(0)); let v = 0;
+    for (const [tt, vv] of P.progress) { if (tt > t) break; c.lineTo(X(tt), Y(v)); c.lineTo(X(tt), Y(vv)); v = vv; }
+    c.lineTo(X(t), Y(v)); c.stroke();
+    c.fillStyle = BLUE; c.beginPath(); c.arc(X(t), Y(v), 3.5, 0, Math.PI * 2); c.fill();
+    return v;
   }
-  addEventListener("resize", () => { const k = cur; panel.style.minHeight = ""; settle(); layoutWires(); show(k); });
-  settle(); layoutWires(); show("scout");
-  document.fonts && document.fonts.ready.then(() => { const k = cur; panel.style.minHeight = ""; settle(); layoutWires(); show(k); });
-  setInterval(() => { if (performance.now() > held) show(order[(order.indexOf(cur) + 1) % order.length]); }, 6000);
+  function lanes(cv, t) {
+    const { ctx: c, w, h } = fit(cv, room(cv)), keys = ["z", "x", "ArrowLeft", "ArrowRight"], span = 6, lh = h / keys.length;
+    const X = tt => w - (t - tt) / span * (w - 30);
+    c.font = "600 13px 'Libre Franklin', sans-serif";
+    keys.forEach((k, i) => {
+      const y = i * lh;
+      c.fillStyle = "#f1f4f7"; c.fillRect(30, y + 4, w - 30, lh - 8);
+      c.fillStyle = INK3; c.fillText(keyLabel(k), 8, y + lh / 2 + 5);
+      P.keys.forEach(([kk, a, b]) => {
+        if (kk !== k || a > t || (b ?? t) < t - span) return;
+        const x0 = Math.max(30, X(a)), x1 = X(Math.min(b ?? t, t));
+        c.fillStyle = (b ?? 1e9) >= t ? ACCENT : BLUE; c.fillRect(x0, y + 6, Math.max(2, x1 - x0), lh - 12);
+      });
+    });
+    c.strokeStyle = INK; c.beginPath(); c.moveTo(w - .5, 0); c.lineTo(w - .5, h); c.stroke();
+  }
+  function tick(now) {
+    if (!cur) return;
+    const st = STORY[cur], t = (now - t0) / 1000;
+    // stages that run more than once start over each round, with the next case
+    const u = st.cycle ? t % st.cycle : t, r = st.cycle ? Math.floor(t / st.cycle) % st.cases : 0;
+    if (st.cycle && r !== round) { round = r; st.fill(panel, r); }
+    const lit = steps.reduce((n, [, , at], i) => u >= at ? i : n, -1);
+    panel.querySelectorAll(".rail li").forEach((li, i) => {
+      li.classList.toggle("on", i <= lit); li.classList.toggle("now", i === lit);
+      li.classList.toggle("done", i + 1 < steps.length && u >= steps[i + 1][2]);
+    });
+    panel.querySelectorAll(".card").forEach((cd, i) => { cd.classList.toggle("in", u >= steps[i][2]); cd.classList.toggle("now", i === lit); });
+    panel.querySelectorAll(".card [data-at]").forEach(el => el.classList.toggle("in", u >= +el.dataset.at));
+    panel.querySelectorAll(".typed").forEach(el => {
+      const f = clamp((u - +el.dataset.at) / +el.dataset.dur, 0, 1), txt = el.dataset.text || "", n = Math.ceil(txt.length * f);
+      if (el.textContent.length !== n) el.textContent = txt.slice(0, n);
+    });
+    const flip = panel.querySelector(".flip");
+    if (flip) { const i = Math.floor(t / 1.1) % flip.children.length; [...flip.children].forEach((im, j) => im.classList.toggle("on", j === i)); }
+    const vt = video && video.readyState >= 2 ? video.currentTime - P.offset : P.from;
+    panel.querySelectorAll(".pline").forEach(cv => {
+      const v = progressLine(cv, vt), tok = cv.parentElement.querySelector(".tok");
+      if (tok) tok.textContent = Math.round(v * S.task.target);
+    });
+    panel.querySelectorAll(".lanes").forEach(cv => lanes(cv, vt));
+    const mini = panel.querySelector(".mini");
+    if (mini) {   // the policy lines that ran on the call at this moment of the video
+      let hit = []; for (const [tt, ls] of S.coding.hits) { if (tt > vt) break; hit = ls; }
+      const key = hit.join(",");
+      if (key !== lastHit) { lastHit = key; mini.querySelectorAll("span").forEach(sp => sp.classList.toggle("hit", hit.includes(+sp.dataset.l))); }
+    }
+    const seen = panel.querySelector(".seen");
+    if (seen) seen.classList.toggle("thinking", u < steps[2][2]);
+    if (t > st.dur && performance.now() > held && running) show(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+  }
+
+  // ---------- the drawing
+  const ctx = canvas.getContext("2d"), wall = new Image();
+  wall.src = "assets/wall.jpg";
+  const COLS = T.cols, [TW, TH] = T.tile;
+  let G = null;
+  const node = k => cycle.querySelector(`.node[data-k=${k}]`);
+  // Everything is placed in design units on a DW x DH board, which is then scaled as one
+  // piece to fit the screen; the ring, the cards and the icons keep their proportions.
+  const DH = 414, R = 155, GAP = 52, SIDE = 46, STACK = 14;   // SIDE: sites to Scout = Data (with its stack) to library
+  let DW = 1300;   // set by layout() to just hold both sides
+  // The library: a framed window, two episodes wide and four rows tall, onto a list that keeps
+  // growing; when the bottom row is full the rows slide up and the top one leaves the window.
+  const LIB = { cols: 2, rows: 4, cw: 60, ch: 34, gap: 6, pad: 9 };
+  LIB.w = LIB.cols * (LIB.cw + LIB.gap) - LIB.gap + 2 * LIB.pad; LIB.h = LIB.rows * (LIB.ch + LIB.gap) - LIB.gap + 2 * LIB.pad; LIB.step = LIB.ch + LIB.gap;
+  const HEAP_W = LIB.w;
+  function layout() {
+    const box = $("#cycle-box"), stage = cycle.closest(".pin-stage"), group = $("#pgroup");
+    const size = el => [el.offsetWidth / 2, el.offsetHeight / 2];
+    const [bw, bh] = size(node("builder")), [ew] = size(node("env")), [gw, gh] = size(group), [rw] = size(node("reports"));
+    const [sw] = size(node("scout")), [dw] = size(node("data"));
+    // the board is as wide as its longer side needs, twice, so the ring stays in the middle
+    const left = R + bw + GAP + 2 * sw + SIDE + HEAP_W, right = R + gw + GAP + 2 * dw + STACK + SIDE + LIB.w;
+    DW = Math.round(2 * Math.max(left, right) + 36);
+    const availW = Math.min(innerWidth - 40, 1600), availH = innerHeight - offsetIn(box, stage) - panel.offsetHeight - 18 - 26;
+    const k = clamp(Math.min(availW / DW, availH / DH), .55, 1.12);
+    cycle.style.width = DW + "px"; cycle.style.height = DH + "px"; cycle.style.transform = `translateX(-50%) scale(${k})`;
+    box.style.height = Math.round(DH * k) + "px";
+    // on tall screens the drawing and its panel sit in the middle of the room under the title
+    box.style.marginTop = Math.max(0, Math.round((availH - DH * k) / 2)) + "px";
+    const dpr = (devicePixelRatio || 1) * k;
+    canvas.width = Math.round(DW * dpr); canvas.height = Math.round(DH * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cx = DW / 2, cy = DH / 2;
+    const sx = cx - R - bw - GAP - sw, dx = cx + R + gw + GAP + dw;
+    G = { W: DW, H: DH, cx, cy, sx, dx, sL: sx - sw, dR: dx + dw };
+    const place = (el, x, y) => { el.style.left = x + "px"; el.style.top = y + "px"; };
+    place(node("scout"), sx, cy); place(node("builder"), cx - R, cy); place(node("env"), cx, cy - R);
+    place(group, cx + R, cy); place(node("reports"), cx, cy + R); place(node("data"), dx, cy);
+    // the sites end SIDE short of the Scout; the library starts SIDE past the Data and its stack
+    G.heap = heap([...cycle.querySelectorAll(".logo")], G.sL - SIDE - HEAP_W, G.sL - SIDE, cy, 44);
+    const reach = Math.max(...G.heap.map(c => c.x + c.w / 2)), shift = G.sL - SIDE - reach;
+    G.heap.forEach(c => { c.x += shift; place(c.el, c.x, c.y); });
+    G.lib = { x: G.dR + STACK + SIDE, y: cy - LIB.h / 2 };
+    if (!lib.rows.length) {   // start part full
+      const any = () => Math.floor(Math.random() * T.games.length);
+      lib.rows = [[any(), any()], [any(), any()], [any(), any()], [any(), -1]];
+    }
+    // where each card leaves the ring, in degrees either side of its own angle
+    const edge = (half, pad = 8) => Math.asin(Math.min(1, (half + pad) / R)) * 180 / Math.PI;
+    G.arcs = [   // [from, to] in screen degrees, clockwise, and the colour
+      [180 + edge(bh), 270 - edge(ew), RGB_TEAL], [270 + edge(ew), 360 - edge(gh), RGB_BLUE],
+      [edge(gh), 90 - edge(rw), RGB_ORANGE], [90 + edge(rw), 180 - edge(bh), RGB_ORANGE]];
+    G.links = [[sx + sw + 8, cx - R - bw - 8, RGB_TEAL], [cx + R + gw + 8, dx - dw - 8, RGB_BLUE]];
+    const line = (x0, x1) => Array.from({ length: 40 }, (_, i) => [x0 + (x1 - x0) * i / 39, cy]);
+    const arc = (a0, a1) => Array.from({ length: 160 }, (_, i) => { const a = (a0 + (a1 - a0) * i / 159) * Math.PI / 180; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
+    G.paths = { feed: line(sx, cx - R), top: arc(180, 360), back: arc(0, 180), out: line(cx + R, dx), ring: arc(180, 540) };
+  }
+  // rows are numbered for good (`base` is the number of the top one kept), so a game flying
+  // to its slot keeps its target while the rows slide under it
+  const lib = { rows: [], base: 0, scroll: 0, flash: {} };
+  const cellAt = (row, col) => [G.lib.x + LIB.pad + col * (LIB.cw + LIB.gap) + LIB.cw / 2,
+    G.lib.y + LIB.pad + (row - lib.base) * LIB.step - lib.scroll + LIB.ch / 2];
+  function claim() {   // the next free slot, opening a new row at the bottom when the last is full
+    let r = lib.rows.length - 1, c = lib.rows[r].indexOf(-1);
+    if (c < 0) { lib.rows.push([-1, -1]); r++; c = 0; }
+    lib.rows[r][c] = -2;   // taken, still in flight
+    return [lib.base + r, c];
+  }
+  function stepLib(dt) {
+    const target = Math.max(0, lib.rows.length - LIB.rows) * LIB.step;
+    lib.scroll += (target - lib.scroll) * (1 - Math.exp(-dt * 5));
+    if (lib.rows.length > LIB.rows && lib.scroll > LIB.step - .5) { lib.rows.shift(); lib.base++; lib.scroll -= LIB.step; }
+  }
+  function drawLib() {
+    const { x, y } = G.lib;
+    ctx.save();
+    ctx.shadowColor = "rgba(23,40,55,.08)"; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(x, y, LIB.w, LIB.h, 12); ctx.fill();
+    ctx.shadowColor = "transparent"; ctx.strokeStyle = "#e3e8ee"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(x + 1, y + 1, LIB.w - 2, LIB.h - 2, 11); ctx.clip();
+    lib.rows.forEach((row, r) => row.forEach((gi, c) => {
+      const [cx, cy] = cellAt(lib.base + r, c), x0 = cx - LIB.cw / 2, y0 = cy - LIB.ch / 2;
+      if (y0 > y + LIB.h || y0 + LIB.ch < y) return;
+      if (gi < 0) { ctx.fillStyle = "#eef1f4"; ctx.beginPath(); ctx.roundRect(x0, y0, LIB.cw, LIB.ch, 4); ctx.fill(); return; }
+      ctx.save(); ctx.beginPath(); ctx.roundRect(x0, y0, LIB.cw, LIB.ch, 4); ctx.clip();
+      if (wall.complete && wall.naturalWidth) ctx.drawImage(wall, (gi % COLS) * TW, Math.floor(gi / COLS) * TH, TW, TH, x0, y0, LIB.cw, LIB.ch);
+      ctx.restore();
+      const age = clock - (lib.flash[`${lib.base + r},${c}`] ?? -9);
+      if (age < .6) { ctx.strokeStyle = `rgba(${RGB_BLUE},${(1 - age / .6).toFixed(3)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(x0 - 1.5, y0 - 1.5, LIB.cw + 3, LIB.ch + 3, 5); ctx.stroke(); }
+    }));
+    // the rows fade out at the window's top and in at its bottom
+    [[y, y + 16], [y + LIB.h, y + LIB.h - 16]].forEach(([a, b]) => {
+      const g = ctx.createLinearGradient(0, a, 0, b); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g; ctx.fillRect(x, Math.min(a, b), LIB.w, 16);
+    });
+    ctx.restore();
+  }
+  function along(pts, f) {
+    const x = clamp(f, 0, 1) * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(x)), t = x - i;
+    const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+    return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, Math.atan2(y1 - y0, x1 - x0)];
+  }
+  const RGB_TEAL = "35,128,107", RGB_BLUE = "61,111,176", RGB_ORANGE = "221,107,32";
+  // Wide arrows, faint at the tail and stronger towards the head.
+  const BODY = 26, HEAD_L = 22, HEAD_W = 46, A0 = .05, A1 = .3;
+  function arcArrow(a0, a1, rgb) {
+    const r0 = a0 * Math.PI / 180, r1 = a1 * Math.PI / 180, hl = HEAD_L / R, span = r1 - r0;
+    const g = ctx.createConicGradient ? ctx.createConicGradient(r0, G.cx, G.cy) : null;
+    if (g) { g.addColorStop(0, `rgba(${rgb},${A0})`); g.addColorStop(Math.min(1, span / (2 * Math.PI)), `rgba(${rgb},${A1})`); g.addColorStop(1, `rgba(${rgb},${A0})`); }
+    ctx.save();
+    ctx.strokeStyle = g || `rgba(${rgb},${(A0 + A1) / 2})`; ctx.lineWidth = BODY; ctx.lineCap = "butt";
+    ctx.beginPath(); ctx.arc(G.cx, G.cy, R, r0, r1 - hl); ctx.stroke();
+    const at = (a, rr) => [G.cx + rr * Math.cos(a), G.cy + rr * Math.sin(a)];
+    ctx.fillStyle = `rgba(${rgb},${A1})`; ctx.beginPath();
+    ctx.moveTo(...at(r1 - hl, R - HEAD_W / 2)); ctx.lineTo(...at(r1, R)); ctx.lineTo(...at(r1 - hl, R + HEAD_W / 2)); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function lineArrow(x0, x1, rgb) {
+    const y = G.cy, g = ctx.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0, `rgba(${rgb},${A0})`); g.addColorStop(1, `rgba(${rgb},${A1})`);
+    ctx.save(); ctx.fillStyle = g; ctx.fillRect(x0, y - BODY / 2, x1 - HEAD_L - x0, BODY);
+    ctx.fillStyle = `rgba(${rgb},${A1})`; ctx.beginPath();
+    ctx.moveTo(x1 - HEAD_L, y - HEAD_W / 2); ctx.lineTo(x1, y); ctx.lineTo(x1 - HEAD_L, y + HEAD_W / 2); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function thumb(gi, x, y, w, h, s = 1, border = null) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.shadowColor = "rgba(23,40,55,.25)"; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, 4); ctx.fill();
+    ctx.shadowColor = "transparent";
+    if (wall.complete && wall.naturalWidth) ctx.drawImage(wall, (gi % COLS) * TW, Math.floor(gi / COLS) * TH, TW, TH, -w / 2, -h / 2, w, h);
+    if (border) { ctx.strokeStyle = border; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, 4); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  // games riding the arrows
+  const items = [], LEG = { drift: 1.9, feed: 1.4, top: 2.4, back: 2.4, out: 1.3, lib: .9 };
+  function spawn() {
+    const c = G.heap[Math.floor(Math.random() * G.heap.length)];   // out from behind one of the cards
+    const from = [c.x + (Math.random() - .5) * c.w * .6, c.y], to = [G.sx, G.cy];
+    const bend = [(from[0] + to[0]) / 2 + (Math.random() - .5) * 60, (from[1] + to[1]) / 2 + (Math.random() - .5) * 120];
+    items.push({ gi: Math.floor(Math.random() * T.games.length), leg: "drift", t: 0, from, bend, to, again: Math.random() < .3 });
+  }
+  function drawItem(it) {
+    if (it.leg === "drift") {
+      const f = ease(clamp(it.t, 0, 1)), u = 1 - f;
+      const x = u * u * it.from[0] + 2 * u * f * it.bend[0] + f * f * it.to[0], y = u * u * it.from[1] + 2 * u * f * it.bend[1] + f * f * it.to[1];
+      return thumb(it.gi, x, y, 54, 30, .55 + .35 * f);
+    }
+    if (it.leg === "lib") {
+      const [x0, y0] = [G.dx, G.cy], [x1, y1] = cellAt(...it.slot), f = ease(clamp(it.t, 0, 1));
+      const s = 1 + (LIB.cw / 54 - 1) * f;
+      return thumb(it.gi, x0 + (x1 - x0) * f, y0 + (y1 - y0) * f - Math.sin(f * Math.PI) * 26, 54, 30, s);
+    }
+    const [x, y] = along(G.paths[it.leg], it.t);
+    thumb(it.gi, x, y, 54, 30, it.leg === "feed" ? .9 + .1 * clamp(it.t * 2.5, 0, 1) : 1, it.leg === "back" ? `rgb(${RGB_ORANGE})` : null);
+  }
+
+  let running = false, last = 0, clock = 0, spawnIn = 0;
+  function frame(now) {
+    if (!running) return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
+    ctx.clearRect(0, 0, G.W, G.H);
+    // the whole ring, faintly, under the arrows that run round it
+    ctx.save(); ctx.strokeStyle = "rgba(61,111,176,.045)"; ctx.lineWidth = BODY; ctx.beginPath(); ctx.arc(G.cx, G.cy, R, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    G.arcs.forEach(([a0, a1, rgb]) => arcArrow(a0, a1, rgb));
+    G.links.forEach(([x0, x1, rgb]) => lineArrow(x0, x1, rgb));
+    stepLib(dt);
+    drawLib();
+    // games
+    spawnIn -= dt;
+    if (spawnIn <= 0 && items.length < 9) { spawn(); spawnIn = 1.6; }
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      it.t += dt / LEG[it.leg];
+      if (it.t < 1) continue;
+      it.t = 0;
+      if (it.leg === "drift") it.leg = "feed";
+      else if (it.leg === "feed") it.leg = "top";
+      else if (it.leg === "top") { it.leg = it.again ? "back" : "out"; it.again = false; }
+      else if (it.leg === "back") it.leg = "top";
+      else if (it.leg === "out") { it.leg = "lib"; it.slot = claim(); }
+      else {
+        const [r, c] = it.slot;
+        if (r >= lib.base) { lib.rows[r - lib.base][c] = it.gi; lib.flash[`${r},${c}`] = clock; }
+        items.splice(i, 1);
+      }
+    }
+    items.forEach(drawItem);
+    tick(now);
+    requestAnimationFrame(frame);
+  }
+  new IntersectionObserver(([e]) => {
+    if (e.isIntersecting && !running) { running = true; last = performance.now(); if (!cur) show("scout"); requestAnimationFrame(frame); }
+    else if (!e.isIntersecting) { running = false; if (video) video.pause(); }
+  }).observe(cycle);
+  addEventListener("resize", () => { layout(); });
+  layout();
+  document.fonts && document.fonts.ready.then(layout);
 }
 
 /* ============ keyboard and mouse ============ */
@@ -473,15 +750,17 @@ function pointerLayer(cursor, ripple) {
 }
 // Size a bench so the whole player fits in one screen: the left column is as wide as the
 // height allows, the right column takes the rest and matches the left column's height.
+const offsetIn = (el, anc) => { let y = 0; while (el && el !== anc) { y += el.offsetTop; el = el.offsetParent; } return y; };
 function fitBench(bench, left, extra) {
-  const wrapW = bench.parentElement.clientWidth, avail = innerHeight - 156 - 28;
+  const stage = bench.closest(".pin-stage"), top = stage ? offsetIn(bench, stage) : 156;
+  const wrapW = bench.parentElement.clientWidth, avail = innerHeight - top - 24;
   const lw = clamp((avail - extra.fixed) / extra.perWidth, 380, wrapW * .62);
   bench.style.gridTemplateColumns = `${Math.round(lw)}px minmax(0, 1fr)`;
   return lw;
 }
 // Players start fetching only when their section comes within a screen of view.
 const near = (el, fn) => new IntersectionObserver((es, io) => { if (es.some(e => e.isIntersecting)) { io.disconnect(); fn(); } }, { rootMargin: "100% 0px" }).observe(el);
-function videoLoop(video, render, playBtn) {
+function videoLoop(video, render, playBtn, active = () => true) {
   video.preload = "none";
   near(video, () => { video.preload = "auto"; });
   const loop = () => { render(video.currentTime); if (!video.paused) schedule(); };
@@ -493,8 +772,9 @@ function videoLoop(video, render, playBtn) {
   video.addEventListener("ended", () => { video.currentTime = 0; video.play(); });
   playBtn.onclick = () => video.paused ? video.play() : video.pause();
   let visible = false;
-  new IntersectionObserver(es => es.forEach(e => { visible = e.isIntersecting; visible ? video.play().catch(() => {}) : video.pause(); }), { threshold: .3 }).observe(video);
-  return () => { if (visible) video.play().catch(() => {}); };
+  const sync = () => visible && active() ? video.play().catch(() => {}) : video.pause();
+  new IntersectionObserver(es => es.forEach(e => { visible = e.isIntersecting; sync(); }), { threshold: .3 }).observe(video);
+  return { resume: () => { if (visible && active()) video.play().catch(() => {}); }, sync };
 }
 
 /* ============ examples ============ */
@@ -563,7 +843,7 @@ function initExamples(list) {
       ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(t), py); ctx.lineTo(X(t), py + PLOT); ctx.stroke();
     });
   }
-  const resume = videoLoop(video, render, $("#ex-play"));
+  const { resume } = videoLoop(video, render, $("#ex-play"));
   scrubber($("#ex-scrub"), f => { video.currentTime = f * (cur?.duration || 0); render(video.currentTime); });
   addEventListener("resize", layout);
   open(0);
@@ -675,14 +955,11 @@ const MAPS = {
     dot(ctx, X(px), Y(py), 4, INK);
   },
 };
-function initPolicies(index) {
+function initCoding(index, active) {
   const video = $("#pv-video"), kb = buildKeyboard($("#pv-kb")), ms = buildMouse($("#pv-ms"));
   const pointer = pointerLayer($("#pv-cursor"), $("#pv-ripple")), scroller = $("#code-scroll"), code = $("#code");
   const cache = {};
-  let T = null, rows = {}, assign = {}, prevHit = new Set(), lastIdx = -1, userUntil = 0;
-  $("#pv-tabs").innerHTML = index.map((g, i) => `<button data-i="${i}">${esc(g.title)}</button>`).join("");
-  $("#pv-tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) open(+b.dataset.i); });
-  ["wheel", "pointerdown", "touchstart"].forEach(ev => scroller.addEventListener(ev, () => userUntil = performance.now() + 4000, { passive: true }));
+  let T = null, rows = {}, assign = {}, lastIdx = -1;
   let mapH = 160;
   function layout() {
     const lw = fitBench($("#pv-bench"), $("#pv-left"), { perWidth: .5625 + .30 + .87 * kb.aspect, fixed: 36 + 10 + 10 + 12 });
@@ -692,9 +969,8 @@ function initPolicies(index) {
   }
   async function open(i) {
     const g = index[i].game;
-    document.querySelectorAll("#pv-tabs button").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
     T = cache[g] = cache[g] || await load(`assets/policy/${g}.json`);
-    setVideo(video, T.video); video.currentTime = 0; resume(); lastIdx = -1; prevHit = new Set();
+    setVideo(video, T.video); video.currentTime = 0; loop.resume(); lastIdx = -1;
     $("#code-file").textContent = T.file;
     // inline values sit on the last executed assignment of each local
     assign = {};
@@ -708,7 +984,33 @@ function initPolicies(index) {
     const n = T.calls.length;
     code.innerHTML = T.source.map((src, k) => `<div class="ln" data-n="${k + 1}"><span class="no">${k + 1}</span><span class="cov"><i style="width:${((T.coverage[k + 1] || 0) / n * 100).toFixed(1)}%"></i></span><span class="src">${highlightPy(src) || " "}</span><span class="val"></span></div>`).join("");
     rows = {}; code.querySelectorAll(".ln").forEach(el => rows[+el.dataset.n] = el);
-    layout(); render(0);
+    T.flicker = flicker(T);
+    layout(); render(0); toHotspot();
+  }
+  // How often each line changes state from one call to the next (run / not run / last line).
+  function flicker(T) {
+    const n = {};
+    let prev = new Set(), prevLast = null;
+    T.calls.forEach(c => {
+      const hit = new Set(c.lines);
+      hit.forEach(l => { if (!prev.has(l)) n[l] = (n[l] || 0) + 1; });
+      prev.forEach(l => { if (!hit.has(l)) n[l] = (n[l] || 0) + 1; });
+      if (c.last !== prevLast) [c.last, prevLast].forEach(l => { if (l) n[l] = (n[l] || 0) + 1; });
+      prev = hit; prevLast = c.last;
+    });
+    return n;
+  }
+  // Show the window of lines that flickers most; the reader scrolls freely from there.
+  function toHotspot() {
+    const lines = Object.keys(rows).map(Number).sort((a, b) => a - b), h = scroller.clientHeight;
+    if (!lines.length || !h) return;
+    let best = 0, bestTop = 0, sum = 0, j = 0;
+    lines.forEach((l, i) => {
+      sum += T.flicker[l] || 0;
+      while (rows[l].offsetTop + rows[l].offsetHeight - rows[lines[j]].offsetTop > h) sum -= T.flicker[lines[j++]] || 0;
+      if (sum > best) { best = sum; bestTop = rows[lines[j]].offsetTop; }
+    });
+    scroller.scrollTop = bestTop - 6;
   }
   const callAt = t => { let lo = 0, hi = T.calls.length - 1, a = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (T.calls[m].t <= t) { a = m; lo = m + 1; } else hi = m - 1; } return a; };
   const blank = n => !(T.source[n - 1] || "").trim() || (T.source[n - 1] || "").trim().startsWith("#");
@@ -724,25 +1026,16 @@ function initPolicies(index) {
     probe(c);
     if (i === lastIdx) return; lastIdx = i;
     const hit = new Set(c.lines);
-    let focus = null;
     Object.entries(rows).forEach(([n, el]) => {
       n = +n; const on = hit.has(n);
-      if (focus === null && on !== prevHit.has(n) && !blank(n)) focus = n;
       el.classList.toggle("hit", on); el.classList.toggle("last", n === c.last);
       el.classList.toggle("off", !on && !blank(n)); el.querySelector(".val").textContent = "";
     });
-    prevHit = hit;
     const values = { ...c.v, ...(c.s || {}) };
     Object.entries(assign).forEach(([name, lines]) => {
       const done = lines.filter(n => hit.has(n)).pop();
       if (done && name in values) rows[done].querySelector(".val").textContent = showValue(values[name]);
     });
-    // follow the code: keep the line where the path changed (or the return) in view
-    const target = rows[focus ?? c.last];
-    if (target && performance.now() > userUntil) {
-      const top = target.offsetTop, h = scroller.clientHeight, st = scroller.scrollTop;
-      if (top < st + h * .2 || top > st + h * .8) scroller.scrollTo({ top: top - h * .4, behavior: reduce ? "auto" : "smooth" });
-    }
   }
   // What the policy read this step: a small map on the left, the fields that decide on the right.
   function probe(c) {
@@ -752,8 +1045,142 @@ function initPolicies(index) {
     const html = (c.fields || []).map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
     if (html !== $("#fields").dataset.html) { $("#fields").innerHTML = html; $("#fields").dataset.html = html; }
   }
-  const resume = videoLoop(video, render, $("#pv-play"));
+  const loop = videoLoop(video, render, $("#pv-play"), active);
   scrubber($("#pv-scrub"), f => { if (!T) return; video.currentTime = f * T.duration; render(video.currentTime); });
-  addEventListener("resize", () => { layout(); render(video.currentTime); });
-  near($("#pv-bench"), () => open(0));   // the first trace is ~1 MB: fetch it on approach
+  addEventListener("resize", () => { if (!T) return; layout(); render(video.currentTime); toHotspot(); });
+  return { open, sync: loop.sync };
+}
+
+/* ============ the VLM Player ============ */
+// The model plays from screenshots and the game waits while it thinks. The video is game
+// time with those pauses cut out, so playback puts a short pause back at every step: the
+// frame freezes, the screenshot joins the model's context, its reasoning comes in, the keys go.
+function initVLM(index, active) {
+  const video = $("#vm-video"), screen = $("#vm-screen"), kb = buildKeyboard($("#vm-kb")), ms = buildMouse($("#vm-ms"));
+  const pointer = pointerLayer($("#vm-cursor"), $("#vm-ripple")), scroller = $("#vm-scroll"), list = $("#vm-steps");
+  const cache = {}, playBtn = $("#vm-play");
+  let V = null, rows = [], shown = -2, lastT = 0, want = true, visible = false, beat = null, userUntil = 0, mapH = 160;
+  ["wheel", "pointerdown", "touchstart"].forEach(ev => scroller.addEventListener(ev, () => userUntil = performance.now() + 4000, { passive: true }));
+  const thumb = (k, w) => {
+    const sp = V.sprite, h = w * 9 / 16;
+    return `background-image:url(${sp.file});background-size:${sp.cols * w}px auto;background-position:${-(k % sp.cols) * w}px ${-Math.floor(k / sp.cols) * h}px`;
+  };
+  function layout() {
+    const lw = fitBench($("#vm-bench"), $("#vm-left"), { perWidth: .5625 + .30 + .87 * kb.aspect, fixed: 36 + 10 + 10 + 12 });
+    $("#vm-ms-box").style.width = Math.round(lw * .12) + "px";
+    mapH = Math.round(lw * .30);
+    $("#vm-fields").style.height = mapH + "px";
+    $("#vm-ctx").style.height = mapH + "px";
+    shown = -2;
+  }
+  async function open(i) {
+    const g = index[i].game;
+    V = cache[g] = cache[g] || await load(`assets/vlm/${g}.json`);
+    endBeat(); setVideo(video, V.video); video.currentTime = 0; lastT = 0; shown = -2;
+    $("#vm-model").textContent = `${V.model} · task ${V.task}`;
+    $("#vm-thinking").textContent = `${V.model} is thinking`;
+    list.innerHTML = V.steps.map((s, k) => `<div class="turn" data-k="${k}"><span class="no">${k + 1}</span><div class="th" style="${thumb(k, 72)}"></div>
+      <div><p>${esc(s.text || "(no reasoning given)")}</p><div class="meta"><span class="act">${s.act.map(esc).join("; ")}</span><span>${fmt(s.tout || 0)} tokens</span></div></div></div>`).join("");
+    rows = [...list.children];
+    layout(); render(0); sync();
+  }
+  const stepAt = t => { let lo = 0, hi = V.steps.length - 1, a = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (V.steps[m].t <= t) { a = m; lo = m + 1; } else hi = m - 1; } return a; };
+  function render(tv) {
+    if (!V) return;
+    const t = Math.max(0, tv - V.offset), k = stepAt(t), n = V.steps.length;
+    $("#vm-time").textContent = `${t.toFixed(1)} / ${V.duration.toFixed(1)}`;
+    $("#vm-step").textContent = `step ${Math.max(k + 1, 0)} / ${n}`;
+    drawScrub($("#vm-scrub-c"), V.progress, t, V.duration);
+    kb.set(new Set(V.keys.filter(([, a, b]) => a <= t && t < (b ?? V.duration)).map(([key]) => keyName(key))));
+    ms.set(new Set(V.buttons.filter(([, a, b]) => a <= t && t < (b ?? V.duration) + .08).map(([b]) => b)));
+    pointer(V.pointer, V.buttons, t);
+    // playing forward into a new step: the game would have stopped here while the model thought
+    if (want && !beat && !video.paused && k >= 0 && V.steps[k].t > lastT && V.steps[k].t <= t) startBeat(k);
+    lastT = t;
+    if (k !== shown) showStep(k);
+  }
+  function showStep(k) {
+    shown = k;
+    rows.forEach((el, j) => { el.classList.toggle("cur", j === k); el.classList.toggle("future", j > k); });
+    const s = V.steps[Math.max(k, 0)];
+    const ctx = [];
+    for (let j = Math.max(0, k - 5); j <= k; j++) ctx.push(j);
+    const cw = $("#vm-ctx").clientWidth / 3 - 3;
+    $("#vm-ctx").innerHTML = Array.from({ length: 6 }, (_, slot) => {
+      const j = ctx[slot]; if (j === undefined) return "<div></div>";
+      return `<div class="${j === k ? "now" : ""}" style="${thumb(j, cw)}"><span>${j === k ? "now" : `step ${j + 1}`}</span></div>`;
+    }).join("");
+    const p = valueAt(V.progress, s ? s.t : 0);
+    $("#vm-fields").innerHTML = [
+      ["model", V.model],
+      ["screenshot at", k >= 0 ? `${s.obs.toFixed(1)} s` : "-"],
+      ["action", k >= 0 ? s.act.join("; ") : "-"],
+      ["reply", k >= 0 ? `${fmt(s.tout || 0)} tokens` : "-"],
+      ["prompt", k >= 0 ? `${fmt(s.tin || 0)} tokens` : "-"],
+      ["game paused", `${V.paused.count} times, ${Math.round(V.paused.seconds)} s`],
+      ["progress", Math.round(p * 100) + "%"],
+    ].map(([a, b]) => `<div><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join("");
+    const el = rows[k];
+    if (el && performance.now() > userUntil) {
+      const top = el.offsetTop, h = scroller.clientHeight, st = scroller.scrollTop;
+      if (top < st + h * .15 || top + el.offsetHeight > st + h * .85) scroller.scrollTo({ top: top - h * .35, behavior: reduce ? "auto" : "smooth" });
+    }
+  }
+  function startBeat(k) {
+    const s = V.steps[k], ms = clamp(500 + (s.tout || 0) * 2.5, 700, 1600);
+    beat = { k }; video.pause(); screen.classList.add("frozen");
+    $("#vm-shutter").animate([{ opacity: .55 }, { opacity: 0 }], { duration: 260 });
+    const p = rows[k] && rows[k].querySelector("p"), text = s.text || "";
+    if (p && !reduce) {   // the reasoning comes in while the game waits
+      const t0 = performance.now();
+      const type = () => { if (!beat) { p.textContent = text; return; } const f = clamp((performance.now() - t0) / (ms * .8), 0, 1); p.textContent = text.slice(0, Math.ceil(text.length * f)); if (f < 1) requestAnimationFrame(type); };
+      type();
+    }
+    beat.timer = setTimeout(() => { endBeat(); sync(); }, ms);
+  }
+  function endBeat() {
+    if (!beat) return;
+    clearTimeout(beat.timer);
+    const p = rows[beat.k] && rows[beat.k].querySelector("p");
+    if (p) p.textContent = V.steps[beat.k].text || "(no reasoning given)";
+    beat = null; screen.classList.remove("frozen");
+  }
+  const loop = () => { render(video.currentTime); if (!video.paused) schedule(); };
+  const schedule = () => video.requestVideoFrameCallback ? video.requestVideoFrameCallback(loop) : requestAnimationFrame(loop);
+  video.addEventListener("play", () => { schedule(); });
+  video.addEventListener("seeked", () => render(video.currentTime));
+  video.addEventListener("loadeddata", () => render(video.currentTime));
+  video.addEventListener("ended", () => { endBeat(); video.currentTime = 0; lastT = 0; sync(); });
+  const sync = () => {
+    playBtn.textContent = want ? "❚❚" : "▶";
+    if (!V) return;
+    if (visible && active() && want) { video.preload = "auto"; if (!beat) video.play().catch(() => {}); }
+    else { endBeat(); video.pause(); }
+  };
+  playBtn.onclick = () => { want = !want; sync(); };
+  scrubber($("#vm-scrub"), f => { if (!V) return; endBeat(); video.currentTime = f * V.duration + V.offset; lastT = f * V.duration; render(video.currentTime); sync(); });
+  new IntersectionObserver(es => es.forEach(e => { visible = e.isIntersecting; sync(); }), { threshold: .3 }).observe(video);
+  addEventListener("resize", () => { layout(); if (V) render(video.currentTime); });
+  return { open, sync };
+}
+
+/* ============ the two players on one page ============ */
+// One row of game tabs drives both players; the buttons in the header slide from one to the other.
+function initPlayers(index) {
+  let face = 0;
+  const coding = initCoding(index, () => face === 0), vlm = initVLM(index, () => face === 1);
+  $("#pv-tabs").innerHTML = index.map((g, i) => `<button data-i="${i}">${esc(g.title)}</button>`).join("");
+  function open(i) {
+    document.querySelectorAll("#pv-tabs button").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
+    coding.open(i); vlm.open(i);
+  }
+  $("#pv-tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) open(+b.dataset.i); });
+  $("#who").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || +b.dataset.face === face) return;
+    face = +b.dataset.face;
+    document.querySelectorAll("#who button").forEach(x => x.classList.toggle("on", x === b));
+    $("#track").classList.toggle("vlm", face === 1);
+    coding.sync(); vlm.sync();
+  });
+  near($("#players"), () => open(0));   // the first traces are ~1 MB each: fetch them on approach
 }
