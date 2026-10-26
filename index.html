@@ -11,11 +11,50 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- line icons, drawn like the ones in the loop -->
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-paper" viewBox="0 0 24 24"><path d="M6 3h8.5L18 6.5V21H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></symbol>
+  <symbol id="i-data" viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+  <symbol id="i-model" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5M3 17l9 5 9-5"/></symbol>
+  <symbol id="i-board" viewBox="0 0 24 24"><path d="M3 20h18M6 20v-8M12 20V5M18 20v-5"/></symbol>
+  <symbol id="i-env" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8.5h18M8.5 14.5l2.3 2.3 4.7-4.7"/></symbol>
+  <symbol id="i-task" viewBox="0 0 24 24"><path d="M9 4h6M9 4a2 2 0 0 0-2 2H5v15h14V6h-2a2 2 0 0 0-2-2M9 4a2 2 0 0 1 2-1h2a2 2 0 0 1 2 1"/><path d="M8.5 13l2.3 2.3 4.7-4.7"/></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3"/><path d="M18.5 3v4h-4M5.5 21v-4h4"/></symbol>
+  <symbol id="i-players" viewBox="0 0 24 24"><path d="M7 8l-4 4 4 4M13 6l-3 12"/><path d="M14 12s1.8-3.5 4-3.5 4 3.5 4 3.5-1.8 3.5-4 3.5-4-3.5-4-3.5z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M7 10v4M5 12h4M15.5 11h.1M18 13h.1"/></symbol>
+</svg>
+
+<nav class="topnav" id="topnav">
+  <div class="wrap">
+    <a class="brand name" href="#top" data-go="top"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></a>
+    <div class="links" id="nav-links">
+      <a href="#games" data-go="games">Games</a><a href="#abstract" data-go="abstract">Abstract</a><a href="#contributions" data-go="contributions">Contributions</a><a href="#loop" data-go="loop">The Loop</a><a href="#examples" data-go="examples">Examples</a><a href="#players" data-go="players">Players</a><a href="#results" data-go="results">Results</a><a href="#cite" data-go="cite">Citation</a>
+    </div>
+    <div class="acts">
+      <a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-paper"/></svg>Paper</a>
+      <a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-code"/></svg>Code</a>
+      <a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a>
+    </div>
+  </div>
+</nav>
 
 <div id="intro">
   <div class="stage">
     <canvas id="wall"></canvas>
-    <div class="title-band" id="title-band"><h1>Game2Player</h1><p>From Automated Co-Synthesis of Game Environments and Code Policies to VLM Players</p></div>
+    <div class="title-band" id="title-band">
+      <h1 class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></h1>
+      <p class="sub">From Automated Co-Synthesis of Game Environments and Code Policies to VLM Players</p>
+      <p class="people"><span class="tbd-slot">Authors</span></p>
+      <p class="affil"><span class="tbd-slot">Affiliations</span></p>
+      <div class="links">
+        <a class="btn soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-paper"/></svg>Paper</a>
+        <a class="btn soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-code"/></svg>Code</a>
+        <a class="btn soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a>
+        <a class="btn soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-model"/></svg>Models</a>
+        <a class="btn" href="#leaderboard" data-go="leaderboard"><svg class="i"><use href="#i-board"/></svg>Leaderboard</a>
+      </div>
+    </div>
     <div class="games-head" id="games-head">
       <div class="wrap">
         <div class="head-row"><h2 class="sec">Games</h2>
@@ -27,100 +66,222 @@
   </div>
 </div>
 
-<section class="pin" id="loop" style="--hold: 55vh">
-  <div class="pin-stage"><div class="wrap">
-    <div class="sec-head"><h2 class="sec">The Loop</h2></div>
-    <div class="cycle-box" id="cycle-box">
-      <div class="cycle" id="cycle">
-        <canvas id="cycle-fx"></canvas>
-        <div class="logos" id="logos"></div>
-        <button class="node" data-k="scout"></button>
-        <button class="node" data-k="builder"></button>
-        <button class="node" data-k="env"></button>
-        <div class="pgroup" id="pgroup"><button class="node" data-k="policy"></button><button class="node" data-k="vlm"></button></div>
-        <button class="node" data-k="reports"></button>
-        <button class="node" data-k="data"></button>
-      </div>
-    </div>
-    <div class="loop-panel" id="loop-panel"></div>
+<section class="chapter flow" id="abstract">
+  <header class="wrap intro"><h2 class="sec">Abstract</h2></header>
+  <div class="wrap"><div class="prose">
+    <p>Games test multimodal agents on perception, long-horizon planning and precise control. Turning a game into an environment that can score an agent, or train one, is still manual work. Interactive benchmarks integrate a few dozen games by hand or ask a model to judge the play. Offline benchmarks ask questions about screenshots instead of letting models play. Large gameplay corpora pair video with actions but rarely with goals or outcomes that can be checked.</p>
+    <p>We present <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, an agentic pipeline that turns games from the open web into environments whose tasks are checked against the game's own state. A Builder agent packages each game for offline play with a fixed random seed, exposes its internal state, and writes tasks whose start, progress and success are all computed from that state. A task is only useful if its checks are right, so every task is then played. Coding agents write programmatic policies, VLM agents play from pixels, and the problems they find go back to the Builder for repair.</p>
+    <p>The same play becomes training data. One runtime records policies, VLM agents and people with the same actions. It logs the game state and the task progress at every step and keeps the reasoning of model players. From <span class="tbd">xxx</span> web games, Game2Player builds <span class="tbd">xxx</span> environments with <span class="tbd">xxx</span> tasks. Policies written by coding agents solve <span class="tbd">xxx</span>% of these tasks, compared with <span class="tbd">xxx</span>% for the strongest VLM agent, and a <span class="tbd">xxx</span>B VLM trained on the collected play improves by <span class="tbd">xxx</span> on held-out games.</p>
   </div></div>
 </section>
 
-<section class="pin" id="examples" style="--hold: 55vh">
-  <div class="pin-stage"><div class="wrap">
-    <div class="sec-head"><h2 class="sec">Examples</h2><div class="tabs" id="ex-tabs"></div></div>
-    <div class="bench" id="ex-bench">
-      <div id="ex-left">
-        <div class="screen" id="ex-screen">
-          <video id="ex-video" muted playsinline preload="none"></video>
-          <svg class="cursor" id="ex-cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
-          <div class="ripple" id="ex-ripple"></div>
-        </div>
-        <div class="transport"><button id="ex-play">▶</button><div class="scrub" id="ex-scrub"><canvas id="ex-scrub-c"></canvas></div><span class="time" id="ex-time"></span></div>
-        <div class="deck"><div class="kb"><svg id="ex-kb"></svg></div><div class="ms" id="ex-ms-box"><svg id="ex-ms" viewBox="0 0 92 150"></svg></div></div>
-      </div>
-      <div id="ex-right">
-        <div class="task" id="ex-task-box"><span>Task prompt</span><p id="ex-task"></p></div>
-        <div class="read"><div><b id="ex-prog">0%</b><span>Progress</span></div><div><b id="ex-t">0.0</b><span>Seconds</span></div></div>
-        <div class="charts"><canvas id="ex-charts"></canvas></div>
-      </div>
+<section class="chapter flow" id="contributions">
+  <header class="wrap intro"><h2 class="sec">Contributions</h2></header>
+  <div class="wrap">
+    <div class="contrib">
+      <div style="--tone: var(--game); --tint: var(--game-soft)"><span class="ic"><svg class="i"><use href="#i-env"/></svg></span><h4>From web games to verifiable environments</h4>
+        <p>An agentic pipeline turns games found on the open web into offline environments with a fixed seed. Every task has a start condition, a progress measure and a success check computed from the game's own state. A Builder agent makes the environments, player agents test them, and the two are linked by reports and repairs.</p></div>
+      <div style="--tone: var(--player); --tint: var(--player-soft)"><span class="ic"><svg class="i"><use href="#i-data"/></svg></span><h4>A suite of environments and a dataset of play</h4>
+        <p><span class="tbd">xxx</span> environments with <span class="tbd">xxx</span> tasks from <span class="tbd">xxx</span> web games, and <span class="tbd">xxx</span> hours of play by policies and VLM agents. One runtime records all of it in the same format, with the game state, the task progress and the player's reasoning at every step.</p></div>
+      <div style="--tone: var(--turn); --tint: var(--turn-soft)"><span class="ic"><svg class="i"><use href="#i-board"/></svg></span><h4>Experiments on players and training</h4>
+        <p>The player loop raises task correctness from <span class="tbd">xxx</span>% to <span class="tbd">xxx</span>%. Policies written by coding agents solve <span class="tbd">xxx</span>% of the tasks against <span class="tbd">xxx</span>% for VLM agents. VLMs trained on the collected play improve on games they have never seen.</p></div>
     </div>
-  </div></div>
+  </div>
 </section>
 
-<!-- the two players on one page; the buttons in the header slide from one to the other -->
-<section class="pin" id="players" style="--hold: 55vh">
-  <div class="pin-stage"><div class="wrap">
-    <div class="sec-head">
-      <div class="who" id="who">
-        <button data-face="0" class="on"><h2 class="sec">Coding Player</h2><span class="tag rt"><i></i>Real-time</span></button>
-        <button data-face="1"><h2 class="sec">VLM Player</h2><span class="tag ps"><i></i>Paused</span></button>
-      </div>
-      <div class="tabs" id="pv-tabs"></div>
+<!-- Each chapter: its introduction scrolls by, then the interactive part below it stays put. -->
+<section class="chapter" id="loop">
+  <header class="wrap intro">
+    <h2 class="sec">The Loop</h2>
+    <div class="prose">
+      <p>Each game goes through a loop of agents. The <span class="sname" data-k="scout"></span> looks at where the game is published, how it is built and whether its state can be read, and decides whether to take it. The <span class="sname" data-k="builder"></span> gets the game running offline with a fixed seed, exposes its state through <code>game_api.js</code> and writes tasks. It checks each task before the task ships.</p>
+      <p>The <span class="sname" data-k="env"></span> is then played by the <span class="sname" data-k="policy"></span> and the <span class="sname" data-k="vlm"></span> on every task. Problems come back to the Builder as <span class="sname" data-k="reports"></span>. A VLM Player may see no response to its keys, or a Coding Player may need a variable the game does not expose yet. The Builder checks each report against the recording before it changes anything. Every episode is kept as <span class="sname" data-k="data"></span>.</p>
+      <p class="hint">Click a stage in the figure, or a name above, to see what it did for one game, Pico World Race.</p>
     </div>
-    <div class="slider"><div class="track" id="track">
-      <div class="face" id="face-code">
-        <div class="bench" id="pv-bench">
-          <div id="pv-left">
-            <div class="screen">
-              <video id="pv-video" muted playsinline preload="none"></video>
-              <svg class="cursor" id="pv-cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
-              <div class="ripple" id="pv-ripple"></div>
-            </div>
-            <div class="transport"><button id="pv-play">▶</button><div class="scrub" id="pv-scrub"><canvas id="pv-scrub-c"></canvas></div><span class="time" id="pv-time"></span></div>
-            <div class="probe" id="probe"><div class="pmap-box"><canvas id="pmap"></canvas></div><div class="fields" id="fields"></div></div>
-            <div class="deck"><div class="kb"><svg id="pv-kb"></svg></div><div class="ms" id="pv-ms-box"><svg id="pv-ms" viewBox="0 0 92 150"></svg></div></div>
-          </div>
-          <div class="code-window" id="code-window">
-            <div class="bar"><span id="code-file"></span><span id="code-step"></span></div>
-            <div class="code-scroll" id="code-scroll"><div class="code" id="code"></div></div>
-          </div>
+  </header>
+  <div class="pin" style="--hold: 55vh">
+    <div class="pin-stage"><div class="wrap">
+      <div class="cycle-box" id="cycle-box">
+        <div class="cycle" id="cycle">
+          <canvas id="cycle-fx"></canvas>
+          <div class="logos" id="logos"></div>
+          <button class="node" data-k="scout"></button>
+          <button class="node" data-k="builder"></button>
+          <button class="node" data-k="env"></button>
+          <div class="pgroup" id="pgroup"><button class="node" data-k="policy"></button><button class="node" data-k="vlm"></button></div>
+          <button class="node" data-k="reports"></button>
+          <button class="node" data-k="data"></button>
         </div>
       </div>
-      <div class="face" id="face-vlm">
-        <div class="bench" id="vm-bench">
-          <div id="vm-left">
-            <div class="screen" id="vm-screen">
-              <video id="vm-video" muted playsinline preload="none"></video>
-              <svg class="cursor" id="vm-cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
-              <div class="ripple" id="vm-ripple"></div>
-              <div class="shutter" id="vm-shutter"></div>
-              <div class="think" id="vm-think"><b>Paused</b><span id="vm-thinking"></span><i></i><i></i><i></i></div>
-            </div>
-            <div class="transport"><button id="vm-play">▶</button><div class="scrub" id="vm-scrub"><canvas id="vm-scrub-c"></canvas></div><span class="time" id="vm-time"></span></div>
-            <div class="probe"><div class="ctx" id="vm-ctx"></div><div class="fields" id="vm-fields"></div></div>
-            <div class="deck"><div class="kb"><svg id="vm-kb"></svg></div><div class="ms" id="vm-ms-box"><svg id="vm-ms" viewBox="0 0 92 150"></svg></div></div>
-          </div>
-          <div class="code-window" id="vm-window">
-            <div class="bar"><span id="vm-model"></span><span id="vm-step"></span></div>
-            <div class="code-scroll" id="vm-scroll"><div class="steps" id="vm-steps"></div></div>
-          </div>
-        </div>
-      </div>
+      <div class="loop-panel" id="loop-panel"></div>
     </div></div>
-  </div></div>
+  </div>
 </section>
 
+<section class="chapter" id="examples">
+  <header class="wrap intro">
+    <h2 class="sec">Examples</h2>
+    <div class="prose">
+      <p>A task is defined on the game's own state. The Builder writes where it starts, how its progress is measured and when it is done, all as reads of variables in the running game. The three episodes below were played by the Coding Player.</p>
+      <p>The progress is <span class="em">real</span> and <span class="em">continuous</span>. It is read from the game itself at every step, not estimated from the screen or scored by a model. It rises with every bit of headway the player makes, so even a run that fails shows how far it got.</p>
+    </div>
+    <div class="signals">
+      <div><h4>Task prompt</h4><p>The instruction exactly as the player receives it. Policies, VLMs and people get the same one.</p></div>
+      <div><h4>Progress</h4><p>A number from 0 to 1 that the game reports at every step of the episode.</p></div>
+      <div><h4>Game state</h4><p>The game's own variables behind the progress, such as the level or the score, logged with every frame.</p></div>
+      <div><h4>Inputs</h4><p>Every key press, click and pointer move, on the same clock as the video and the state.</p></div>
+    </div>
+  </header>
+  <div class="pin" id="ex-pin" style="--hold: 55vh">
+    <div class="pin-stage"><div class="wrap">
+      <div class="stage-head end">
+        <div class="tabs" id="ex-tabs"></div>
+      </div>
+      <div class="bench" id="ex-bench">
+        <div id="ex-left">
+          <div class="screen" id="ex-screen">
+            <video id="ex-video" muted playsinline preload="none"></video>
+            <svg class="cursor" id="ex-cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            <div class="ripple" id="ex-ripple"></div>
+          </div>
+          <div class="transport"><button id="ex-play">▶</button><div class="scrub" id="ex-scrub"><canvas id="ex-scrub-c"></canvas></div><span class="time" id="ex-time"></span></div>
+          <div class="deck"><div class="kb"><svg id="ex-kb"></svg></div><div class="ms" id="ex-ms-box"><svg id="ex-ms" viewBox="0 0 92 150"></svg></div></div>
+        </div>
+        <div id="ex-right">
+          <div class="task" id="ex-task-box"><span>Task prompt</span><p id="ex-task"></p></div>
+          <div class="read"><div><b id="ex-prog">0%</b><span>Progress</span></div><div><b id="ex-t">0.0</b><span>Seconds</span></div></div>
+          <div class="charts"><span class="label">Recorded at every step</span><canvas id="ex-charts"></canvas></div>
+        </div>
+      </div>
+      <p class="fig-cap">Three recorded episodes. On the left are the recording, the progress curve in the bar beneath it, and the keys and mouse buttons as they are pressed. On the right are the task prompt, the progress and three game variables over the whole episode, and the inputs. The vertical line marks the current moment.</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- the two players on one page; scrolling on (or the buttons in the header) slides from one to the other -->
+<section class="chapter" id="players">
+  <header class="wrap intro">
+    <h2 class="sec">Players</h2>
+    <div class="prose">
+      <p>Every task is played by two kinds of player. The <span class="sname" data-k="policy"></span> is a coding agent that studies the game and writes a policy in Python. The policy reads the state the Builder exposes and plays in real time, so a task can be played quickly and many times.</p>
+      <p>The <span class="sname" data-k="vlm"></span> plays from screenshots alone. It looks at the screen, reasons and presses keys, and the game pauses while it thinks. A slow model is therefore judged on its decisions rather than its speed. It shows whether a task can be understood and played from what is on the screen.</p>
+      <p class="hint">Scroll on to turn from one player to the other, or click a name.</p>
+    </div>
+  </header>
+  <div class="pin" id="pv-pin" style="--hold: 150vh">
+    <div class="pin-stage"><div class="wrap">
+      <div class="stage-head">
+        <div class="who" id="who">
+          <button data-face="0" class="on"><span class="name">Coding Player</span><span class="tag rt"><i></i>Real-time</span></button>
+          <button data-face="1"><span class="name">VLM Player</span><span class="tag ps"><i></i>Paused</span></button>
+          <span class="who-bar" id="who-bar"></span>
+        </div>
+        <div class="tabs" id="pv-tabs"></div>
+      </div>
+      <div class="slider"><div class="track" id="track">
+        <div class="face" id="face-code">
+          <div class="bench" id="pv-bench">
+            <div id="pv-left">
+              <div class="screen">
+                <video id="pv-video" muted playsinline preload="none"></video>
+                <svg class="cursor" id="pv-cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                <div class="ripple" id="pv-ripple"></div>
+              </div>
+              <div class="transport"><button id="pv-play">▶</button><div class="scrub" id="pv-scrub"><canvas id="pv-scrub-c"></canvas></div><span class="time" id="pv-time"></span></div>
+              <div class="probe" id="probe"><div class="pmap-box"><canvas id="pmap"></canvas></div><div class="fields" id="fields"></div></div>
+              <div class="deck"><div class="kb"><svg id="pv-kb"></svg></div><div class="ms" id="pv-ms-box"><svg id="pv-ms" viewBox="0 0 92 150"></svg></div></div>
+            </div>
+            <div class="code-window" id="code-window">
+              <div class="bar"><span id="code-file"></span><span id="code-step"></span></div>
+              <div class="code-scroll" id="code-scroll"><div class="code" id="code"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="face" id="face-vlm">
+          <div class="bench" id="vm-bench">
+            <div id="vm-left">
+              <div class="screen" id="vm-screen">
+                <video id="vm-video" muted playsinline preload="none"></video>
+                <svg class="cursor" id="vm-cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                <div class="ripple" id="vm-ripple"></div>
+                <div class="shutter" id="vm-shutter"></div>
+                <div class="think" id="vm-think"><b>Paused</b><span id="vm-thinking"></span><i></i><i></i><i></i></div>
+              </div>
+              <div class="transport"><button id="vm-play">▶</button><div class="scrub" id="vm-scrub"><canvas id="vm-scrub-c"></canvas></div><span class="time" id="vm-time"></span></div>
+              <div class="probe"><div class="ctx" id="vm-ctx"></div><div class="fields" id="vm-fields"></div></div>
+              <div class="deck"><div class="kb"><svg id="vm-kb"></svg></div><div class="ms" id="vm-ms-box"><svg id="vm-ms" viewBox="0 0 92 150"></svg></div></div>
+            </div>
+            <div class="code-window" id="vm-window">
+              <div class="bar"><span id="vm-model"></span><span id="vm-step"></span></div>
+              <div class="code-scroll" id="vm-scroll"><div class="steps" id="vm-steps"></div></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <p class="fig-cap">The same tasks played by both players. For the Coding Player the page shows the recording, a map of what the policy reads at this step, the fields it acts on, and its code with the lines that ran at this step lit. For the VLM Player it shows the recording, the screenshots in the model's context, what it saw and did at this step, and its reasoning. The frame freezes where the game paused for the model.</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- Results: every number is a placeholder until the experiments are done -->
+<section class="chapter flow" id="results">
+  <header class="wrap intro">
+    <h2 class="sec">Results</h2>
+    <p class="lead">The experiments are still running. The figures and the table below show what will be reported, and every <span class="tbd">xxx</span> is a number still to come.</p>
+  </header>
+  <div class="wrap">
+    <div class="block" id="pipeline">
+      <div class="block-head"><h3>Pipeline quality</h3><span class="soon-tag">Placeholder</span></div>
+      <p class="note">We freeze the pipeline and run it on <span class="tbd">xxx</span> new web games chosen by a rule fixed in advance.</p>
+      <figure class="half"><svg class="skel" data-kind="bars" data-cats="Full loop|Builder alone|Coding agent alone" data-axis="Correct tasks (%)"></svg></figure>
+      <p class="fig-cap">Share of tasks that people confirm as correct, for the full loop, for the Builder alone before any report, and for a coding agent given only the game and a short instruction. All three run on the same games with the same budget.</p>
+    </div>
+
+    <div class="block" id="leaderboard">
+      <div class="block-head"><h3>Leaderboard</h3><span class="soon-tag">Placeholder</span></div>
+      <p class="note">Every player gets the same harness, step budget and seeds.</p>
+      <div class="tabs lb-tabs" id="lb-tabs"><button class="on" data-v="all">All tasks</button><button data-v="held">Held-out games</button></div>
+      <div class="lb" id="lb"></div>
+      <p class="fig-cap">Progress is the share of a task completed by the end of an episode, and success is the share of episodes that complete it. The Coding Player and people are shown for reference.</p>
+    </div>
+
+    <div class="block" id="training">
+      <div class="block-head"><h3>Training on collected play</h3><span class="soon-tag">Placeholder</span></div>
+      <p class="note">A VLM trained on the recorded episodes and tested on games it has never seen.</p>
+      <figure class="half"><svg class="skel" data-kind="groups" data-cats="Held-out games|Seen games|Other benchmarks" data-series="Base|Trained" data-axis="Progress (%)"></svg></figure>
+      <p class="fig-cap">Progress of the base VLM and of the same VLM after training, on held-out games, on games seen in training and on other benchmarks.</p>
+    </div>
+  </div>
+</section>
+
+<section class="chapter flow" id="release">
+  <header class="wrap intro">
+    <h2 class="sec">Release</h2>
+    <p class="lead">What will be released with the paper.</p>
+  </header>
+  <div class="wrap">
+    <div class="release">
+      <div><svg class="i"><use href="#i-env"/></svg><h4>Environments</h4><p><span class="tbd">xxx</span> web games, each packaged to run offline with a fixed seed and to expose its state.</p><a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-code"/></svg>Code</a></div>
+      <div><svg class="i"><use href="#i-task"/></svg><h4>Tasks</h4><p><span class="tbd">xxx</span> tasks, each with a start condition, a progress measure and a success check on the game's state.</p><a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a></div>
+      <div><svg class="i"><use href="#i-play"/></svg><h4>Episodes</h4><p><span class="tbd">xxx</span> hours of play by policies, VLMs and people, with video, state, progress, inputs and reasoning on one clock.</p><a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a></div>
+      <div><svg class="i"><use href="#i-model"/></svg><h4>Models</h4><p>VLMs trained on the episodes, <span class="tbd">xxx</span>B parameters.</p><a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-model"/></svg>Models</a></div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter flow" id="cite">
+  <header class="wrap intro"><h2 class="sec">Citation</h2></header>
+  <div class="wrap">
+    <div class="bib"><button id="bib-copy">Copy</button><pre id="bib">@article{game2player,
+  title   = {Game2Player: From Automated Co-Synthesis of Game Environments
+             and Code Policies to VLM Players},
+  author  = {xxx},
+  journal = {arXiv preprint arXiv:xxxx.xxxxx},
+  year    = {xxxx}
+}</pre></div>
+  </div>
+</section>
+<footer class="wrap foot">Game2Player</footer>
 <script src="app.js"></script>
 </body>
 </html>

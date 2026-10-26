@@ -1,15 +1,19 @@
 /* Project page prototype. All data comes from assets/*.json, exported by build/*.py. */
 
 const GENRE = {
-  "Action": "#d98a00", "Puzzle": "#3e9bd6", "Platformer": "#138a63", "Shooter": "#c8501a",
-  "Strategy": "#2c5fa8", "Simulation": "#b5679a", "Racing": "#a88f00", "Adventure": "#6e4c9a",
-  "Card Game": "#8a5a44", "RPG": "#4e8f2e", "Sports": "#1a9aa8", "Other": "#8b8f95",
+  "Action": "#ec9800", "Puzzle": "#2ba0e6", "Platformer": "#0f9d6c", "Shooter": "#e0531a",
+  "Strategy": "#2563c9", "Simulation": "#c9619f", "Racing": "#bf9f00", "Adventure": "#7a4cb5",
+  "Card Game": "#9c5a3c", "RPG": "#4a9e22", "Sports": "#12a8b8", "Other": "#8b8f95",
 };
 const ENGINE = {
-  "Unity WebGL": "#2c5fa8", "HTML5": "#d98a00", "Flash": "#c8501a", "Godot": "#138a63",
-  "PICO-8": "#b5679a", "GameMaker": "#3e9bd6", "Construct": "#6e4c9a", "Other engines": "#8b8f95",
+  "Unity WebGL": "#2563c9", "HTML5": "#ec9800", "Flash": "#e0531a", "Godot": "#0f9d6c",
+  "PICO-8": "#c9619f", "GameMaker": "#2ba0e6", "Construct": "#7a4cb5", "Other engines": "#8b8f95",
 };
-const INK = "#1f2328", INK3 = "#8b929b", RULE = "#e5e7eb", PANEL = "#f7f9fb", ACCENT = "#dd6b20", BLUE = "#3d6fb0";
+const INK = "#1f2328", INK3 = "#7d8796", RULE = "#e5e7eb", PANEL = "#f7f9fb";
+// The three role colours and their shades live in the stylesheet (:root); drawings read them from there.
+const role = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const GAME = role("--game"), TURN = role("--turn"), PLAYER = role("--player");
+const alpha = (hex, a) => `rgba(${[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(",")},${a})`;
 const $ = (s, el = document) => el.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -27,16 +31,51 @@ function fit(canvas, cssH) {
   return { ctx, w, h };
 }
 const load = p => fetch(p).then(r => r.json());
+initNav();
+initResults();
 Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json"].map(load))
   .then(([tiles, data, stories, policies]) => {
-    initIntro(tiles, data);
+    initIntro(tiles);
     initLoop(stories, tiles);
     initExamples(data.replays);
     initPlayers(policies);
   });
 
+/* ============ the bar along the top ============ */
+function navH() { return $("#topnav").offsetHeight; }
+// How far the page has scrolled through a pinned chapter's hold, from 0 to 1.
+function progressIn(pin) {
+  const span = pin.offsetHeight - pin.firstElementChild.offsetHeight;
+  return span > 0 ? clamp((navH() - pin.getBoundingClientRect().top) / span, 0, 1) : 0;
+}
+// The page position where a chapter starts under the bar.
+function topOf(el) { return el.getBoundingClientRect().top + scrollY - navH(); }
+function initNav() {
+  const intro = $("#intro"), links = [...document.querySelectorAll("#nav-links a")];
+  const IDS = ["abstract", "contributions", "loop", "examples", "players", "results", "release", "cite"];
+  // the games are the regrouped wall, most of the way through the opening; a chapter lands
+  // with a little room between the bar and its heading
+  const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + (intro.offsetHeight - innerHeight) * .72 : topOf(document.getElementById(id)) - 24;
+  document.addEventListener("click", e => {
+    const a = e.target.closest("a[data-go], a.soon"); if (!a) return;
+    e.preventDefault();
+    if (a.dataset.go) scrollTo({ top: target(a.dataset.go), behavior: "smooth" });
+  });
+  function onScroll() {
+    const p = clamp(scrollY / Math.max(1, intro.offsetHeight - innerHeight), 0, 1);
+    document.body.classList.toggle("nav-on", p > .25);
+    let cur = p > .5 ? "games" : null;
+    IDS.forEach(id => { if (document.getElementById(id).getBoundingClientRect().top <= navH() + innerHeight * .3) cur = id; });
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = IDS[IDS.length - 1];
+    links.forEach(a => a.classList.toggle("on", a.dataset.go === cur));
+  }
+  addEventListener("scroll", onScroll, { passive: true });
+  addEventListener("resize", onScroll);
+  onScroll();
+}
+
 /* ============ opening wall -> games ============ */
-function initIntro(T, data) {
+function initIntro(T) {
   const games = T.games, N = games.length, [TW, TH] = T.tile, COLS = T.cols;
   const canvas = $("#wall"), intro = $("#intro"), head = $("#games-head"), band = $("#title-band");
   const tip = $("#tip"), tipVideo = $("#tip-video");
@@ -59,11 +98,19 @@ function initIntro(T, data) {
   }
   games.forEach((g, i) => { g.i = i; g.cur = {}; g.zoom = 0; g.vel = 0; g.touched = 0; });
 
-  const genres = new Set(), engines = new Set();
-  Object.keys(data.matrix).forEach(k => { const [e, g] = k.split("|"); engines.add(e); genres.add(g); });
-  const t = data.totals;
-  $("#bignums").innerHTML = [[fmt(t.games), "games"], [fmt(t.tasks), "tasks"], [genres.size, "genres"], [engines.size, "engines"],
-    [fmt(t.episodes), "policy episodes"], [fmt(t.hours), "hours of play"]].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("");
+  // the games on the wall and their tasks, counted up from zero each time they come into view
+  const counts = [[N, "games"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks"]];
+  $("#bignums").innerHTML = counts.map(([n, s]) => `<div><b data-to="${n}">${fmt(n)}</b><span>${s}</span></div>`).join("");
+  let counted = false;
+  function countUp() {
+    const els = [...document.querySelectorAll("#bignums b")], t0 = performance.now();
+    const step = now => {
+      const f = reduce ? 1 : clamp((now - t0) / 1500, 0, 1), e = 1 - Math.pow(1 - f, 3);
+      els.forEach(b => b.textContent = fmt(Math.round(+b.dataset.to * e)));
+      if (f < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
 
   let W, H, ctx, wall, groups, group = "genre", switching = null, hover = -1, p = 0, panX = 0, panY = 0, drift = 0, frozen = null, last = performance.now();
   // The wall drifts at a constant speed; its heading turns all the way round about every
@@ -202,7 +249,9 @@ function initIntro(T, data) {
     p = clamp(-intro.getBoundingClientRect().top / span, 0, 1);
     const f = clamp((p - .1) / .15, 0, 1);
     band.style.opacity = 1 - f; band.style.transform = `translate(-50%, calc(-50% - ${f * 40}px))`;
+    band.style.visibility = f >= 1 ? "hidden" : "";
     head.style.opacity = clamp((p - .5) / .12, 0, 1); head.classList.toggle("live", p > .6);
+    if (p > .5 && !counted) { counted = true; countUp(); } else if (p < .45) counted = false;
     if (p < .6 && hover >= 0) leave();
   }
   // The name shows at once; the preview clip loads only once the pointer rests on a tile.
@@ -260,6 +309,10 @@ function initLoop(S, T) {
   const NAME = { scout: "Scout", builder: "Builder", env: "Environment", policy: "Coding Player", vlm: "VLM Player", reports: "Reports", data: "Data" };
   cycle.querySelectorAll(".node").forEach(n => {
     n.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24">${ICON[n.dataset.k]}</svg></span>${NAME[n.dataset.k]}`;
+  });
+  // the stages named in the text are the same buttons, small
+  document.querySelectorAll(".sname[data-k]").forEach(m => {
+    m.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24">${ICON[m.dataset.k]}</svg></span><span class="t">${NAME[m.dataset.k]}</span>`;
   });
   // where the games were found
   const LOGOS = [["itchdotio.svg", "itch.io"], ["armorgames.png", "Armor Games"], ["newgrounds.png", "Newgrounds"],
@@ -400,7 +453,7 @@ function initLoop(S, T) {
     },
   };
   const ORDER = ["scout", "builder", "env", "policy", "vlm", "reports", "data"];
-  let cur = null, t0 = 0, held = 0, video = null, steps = [], round = -1, lastHit = "";
+  let cur = null, t0 = 0, held = 0, still = 0, video = null, steps = [], round = -1, lastHit = "";
   function show(k) {
     cur = k; t0 = performance.now(); texts.length = 0; round = -1;
     cycle.querySelectorAll(".node").forEach(n => n.classList.toggle("on", n.dataset.k === k));
@@ -422,10 +475,16 @@ function initLoop(S, T) {
     }
   }
   cycle.querySelectorAll(".node").forEach(n => {
-    n.addEventListener("mouseenter", () => { held = performance.now() + 15000; if (cur !== n.dataset.k) show(n.dataset.k); });
+    n.addEventListener("mouseenter", () => { if (performance.now() < still) return; held = performance.now() + 15000; if (cur !== n.dataset.k) show(n.dataset.k); });
     n.addEventListener("click", () => { held = performance.now() + 30000; if (cur !== n.dataset.k) show(n.dataset.k); });
   });
   panel.addEventListener("mouseenter", () => held = performance.now() + 15000);
+  // a stage named in the chapter's text: show it, with the figure brought into view; the
+  // boxes passing under the pointer on the way do not take over
+  document.querySelectorAll("#loop .sname").forEach(m => m.addEventListener("click", () => {
+    held = performance.now() + 30000; still = performance.now() + 1500; if (cur !== m.dataset.k) show(m.dataset.k);
+    scrollTo({ top: topOf(cycle.closest(".pin")) + 2, behavior: "smooth" });
+  }));
 
   // a chart canvas fills what is left of its card below whatever sits above it
   const room = cv => Math.max(40, Math.floor(cv.parentElement.getBoundingClientRect().bottom - cv.getBoundingClientRect().top - 12));
@@ -433,10 +492,10 @@ function initLoop(S, T) {
     const { ctx: c, w, h } = fit(cv, room(cv));
     const X = tt => tt / P.duration * w, Y = v => h - 4 - v * (h - 10);
     c.strokeStyle = "#dde3ea"; c.lineWidth = 1; c.beginPath(); c.moveTo(0, h - 3.5); c.lineTo(w, h - 3.5); c.stroke();
-    c.strokeStyle = BLUE; c.lineWidth = 2; c.beginPath(); c.moveTo(0, Y(0)); let v = 0;
+    c.strokeStyle = PLAYER; c.lineWidth = 2; c.beginPath(); c.moveTo(0, Y(0)); let v = 0;
     for (const [tt, vv] of P.progress) { if (tt > t) break; c.lineTo(X(tt), Y(v)); c.lineTo(X(tt), Y(vv)); v = vv; }
     c.lineTo(X(t), Y(v)); c.stroke();
-    c.fillStyle = BLUE; c.beginPath(); c.arc(X(t), Y(v), 3.5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = PLAYER; c.beginPath(); c.arc(X(t), Y(v), 3.5, 0, Math.PI * 2); c.fill();
     return v;
   }
   function lanes(cv, t) {
@@ -450,7 +509,7 @@ function initLoop(S, T) {
       P.keys.forEach(([kk, a, b]) => {
         if (kk !== k || a > t || (b ?? t) < t - span) return;
         const x0 = Math.max(30, X(a)), x1 = X(Math.min(b ?? t, t));
-        c.fillStyle = (b ?? 1e9) >= t ? ACCENT : BLUE; c.fillRect(x0, y + 6, Math.max(2, x1 - x0), lh - 12);
+        c.fillStyle = (b ?? 1e9) >= t ? TURN : PLAYER; c.fillRect(x0, y + 6, Math.max(2, x1 - x0), lh - 12);
       });
     });
     c.strokeStyle = INK; c.beginPath(); c.moveTo(w - .5, 0); c.lineTo(w - .5, h); c.stroke();
@@ -513,7 +572,7 @@ function initLoop(S, T) {
     const [nw, nh] = size(node("builder")), [gw, gh] = size(group);
     // the board is as wide as its wider side needs, twice, so the ring stays in the middle
     DW = Math.round(2 * (R + Math.max(nw, gw) + GAP + 2 * nw + SIDE + HEAP_W) + 12);
-    const availW = box.offsetWidth, availH = innerHeight - offsetIn(box, stage) - panel.offsetHeight - 18 - 26;
+    const availW = box.offsetWidth, availH = stage.clientHeight - offsetIn(box, stage) - panel.offsetHeight - 18 - 26;
     const k = clamp(Math.min(availW / DW, availH / DH), .55, 1.12);
     cycle.style.width = DW + "px"; cycle.style.height = DH + "px"; cycle.style.transform = `translateX(-50%) scale(${k})`;
     box.style.height = Math.round(DH * k) + "px";
@@ -542,8 +601,8 @@ function initLoop(S, T) {
     const PAD = 12, edge = half => Math.asin(Math.min(1, (half + PAD) / R)) * 180 / Math.PI;
     const a = edge(nh), b = edge(nw), g = edge(gh);
     G.arcs = [   // [from, to] in screen degrees, clockwise, and the colour
-      [180 + a, 270 - b, RGB_TEAL], [270 + b, 360 - g, RGB_TEAL], [g, 90 - b, RGB_BLUE], [90 + b, 180 - a, RGB_ORANGE]];
-    G.links = [[sx + nw + PAD, cx - R - nw - PAD, RGB_GREY], [cx + R + gw + PAD, dx - nw - PAD, RGB_BLUE]];
+      [180 + a, 270 - b, "game"], [270 + b, 360 - g, "game"], [g, 90 - b, "player"], [90 + b, 180 - a, "turn"]];
+    G.links = [[sx + nw + PAD, cx - R - nw - PAD, "grey"], [cx + R + gw + PAD, dx - nw - PAD, "player"]];
     const line = (x0, x1) => Array.from({ length: 40 }, (_, i) => [x0 + (x1 - x0) * i / 39, cy]);
     const arc = (a0, a1) => Array.from({ length: 160 }, (_, i) => { const a = (a0 + (a1 - a0) * i / 159) * Math.PI / 180; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
     G.paths = { feed: line(sx, cx - R), top: arc(180, 360), back: arc(0, 180), out: line(cx + R, dx), ring: arc(180, 540) };
@@ -578,7 +637,7 @@ function initLoop(S, T) {
       if (wall.complete && wall.naturalWidth) ctx.drawImage(wall, (gi % COLS) * TW, Math.floor(gi / COLS) * TH, TW, TH, x0, y0, LIB.cw, LIB.ch);
       ctx.restore();
       const age = clock - (lib.flash[`${lib.base + r},${c}`] ?? -9);
-      if (age < .6) { ctx.strokeStyle = `rgba(${RGB_BLUE},${(1 - age / .6).toFixed(3)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(x0 - 1.5, y0 - 1.5, LIB.cw + 3, LIB.ch + 3, 4); ctx.stroke(); }
+      if (age < .6) { ctx.strokeStyle = alpha(PLAYER, (1 - age / .6).toFixed(3)); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(x0 - 1.5, y0 - 1.5, LIB.cw + 3, LIB.ch + 3, 4); ctx.stroke(); }
     }));
     // the rows fade out at the window's top and in at its bottom
     [[y, y + 16], [y + LIB.h, y + LIB.h - 16]].forEach(([a, b]) => {
@@ -592,28 +651,28 @@ function initLoop(S, T) {
     const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
     return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, Math.atan2(y1 - y0, x1 - x0)];
   }
-  const RGB_TEAL = "35,128,107", RGB_BLUE = "61,111,176", RGB_ORANGE = "221,107,32", RGB_GREY = "75,85,99";
   // Block arrows drawn like the boxes: a pale solid fill inside a 1.5px rule in the colour of
   // the stage the arrow leaves, corners slightly rounded.
   const BODY = 26, HEAD_L = 24, HEAD_W = 48;
-  const ARROW = { [RGB_TEAL]: ["#23806b", "#e2f2ed"], [RGB_BLUE]: ["#3d6fb0", "#e7eff9"], [RGB_ORANGE]: ["#b4581d", "#fbeadd"], [RGB_GREY]: ["#4b5563", "#eef1f4"] };
-  function paint(rgb) {
-    const [line, fill] = ARROW[rgb];
+  const ARROW = Object.fromEntries(["game", "turn", "player"].map(k => [k, [role(`--${k}`), role(`--${k}-soft`)]]));
+  ARROW.grey = ["#4b5563", "#eef1f4"];
+  function paint(tone) {
+    const [line, fill] = ARROW[tone];
     ctx.save(); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = line; ctx.lineWidth = 1.5; ctx.lineJoin = "round"; ctx.stroke(); ctx.restore();
   }
-  function arcArrow(a0, a1, rgb) {
+  function arcArrow(a0, a1, tone) {
     const r0 = a0 * Math.PI / 180, r1 = a1 * Math.PI / 180, hl = HEAD_L / R;
     const at = (a, rr) => [G.cx + rr * Math.cos(a), G.cy + rr * Math.sin(a)];
     ctx.beginPath();
     ctx.arc(G.cx, G.cy, R + BODY / 2, r0, r1 - hl);
     ctx.lineTo(...at(r1 - hl, R + HEAD_W / 2)); ctx.lineTo(...at(r1, R)); ctx.lineTo(...at(r1 - hl, R - HEAD_W / 2));
     ctx.arc(G.cx, G.cy, R - BODY / 2, r1 - hl, r0, true);
-    ctx.closePath(); paint(rgb);
+    ctx.closePath(); paint(tone);
   }
-  function lineArrow(x0, x1, rgb) {
+  function lineArrow(x0, x1, tone) {
     const y = G.cy, h = BODY / 2, hw = HEAD_W / 2, xh = x1 - HEAD_L;
     ctx.beginPath(); ctx.moveTo(x0, y - h); ctx.lineTo(xh, y - h); ctx.lineTo(xh, y - hw); ctx.lineTo(x1, y);
-    ctx.lineTo(xh, y + hw); ctx.lineTo(xh, y + h); ctx.lineTo(x0, y + h); ctx.closePath(); paint(rgb);
+    ctx.lineTo(xh, y + hw); ctx.lineTo(xh, y + h); ctx.lineTo(x0, y + h); ctx.closePath(); paint(tone);
   }
   function thumb(gi, x, y, w, h, s = 1, border = null) {
     ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
@@ -643,7 +702,7 @@ function initLoop(S, T) {
       return thumb(it.gi, x0 + (x1 - x0) * f, y0 + (y1 - y0) * f - Math.sin(f * Math.PI) * 26, 54, 30, s);
     }
     const [x, y] = along(G.paths[it.leg], it.t);
-    thumb(it.gi, x, y, 54, 30, it.leg === "feed" ? .9 + .1 * clamp(it.t * 2.5, 0, 1) : 1, it.leg === "back" ? `rgb(${RGB_ORANGE})` : null);
+    thumb(it.gi, x, y, 54, 30, it.leg === "feed" ? .9 + .1 * clamp(it.t * 2.5, 0, 1) : 1, it.leg === "back" ? TURN : null);
   }
 
   let running = false, last = 0, clock = 0, spawnIn = 0;
@@ -651,8 +710,8 @@ function initLoop(S, T) {
     if (!running) return;
     const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
     ctx.clearRect(0, 0, G.W, G.H);
-    G.arcs.forEach(([a0, a1, rgb]) => arcArrow(a0, a1, rgb));
-    G.links.forEach(([x0, x1, rgb]) => lineArrow(x0, x1, rgb));
+    G.arcs.forEach(([a0, a1, tone]) => arcArrow(a0, a1, tone));
+    G.links.forEach(([x0, x1, tone]) => lineArrow(x0, x1, tone));
     stepLib(dt);
     drawLib();
     // games
@@ -743,8 +802,8 @@ function scrubber(el, onSeek) {
 }
 function drawScrub(canvas, series, t, dur) {
   const { ctx, w, h } = fit(canvas, canvas.parentElement.clientHeight);
-  ctx.fillStyle = "#eef3f9"; ctx.fillRect(0, 0, w * t / dur, h);
-  ctx.strokeStyle = INK3; ctx.lineWidth = 1.2; ctx.beginPath();
+  ctx.fillStyle = role("--game-wash"); ctx.fillRect(0, 0, w * t / dur, h);
+  ctx.strokeStyle = GAME; ctx.lineWidth = 1.4; ctx.beginPath();
   series.forEach(([tt, v], i) => { const x = tt / dur * w, y = h - 4 - v * (h - 8); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
   ctx.stroke();
 }
@@ -770,7 +829,8 @@ function pointerLayer(cursor, ripple) {
 const offsetIn = (el, anc) => { let y = 0; while (el && el !== anc) { y += el.offsetTop; el = el.offsetParent; } return y; };
 function fitBench(bench, left, extra) {
   const stage = bench.closest(".pin-stage"), top = stage ? offsetIn(bench, stage) : 156;
-  const wrapW = bench.parentElement.clientWidth, avail = innerHeight - top - 24;
+  const cap = stage && stage.querySelector(".fig-cap"), below = cap ? cap.offsetHeight + 12 : 0;   // its caption stays on screen too
+  const wrapW = bench.parentElement.clientWidth, avail = (stage ? stage.clientHeight : innerHeight) - top - 24 - below;
   const lw = clamp((avail - extra.fixed) / extra.perWidth, 380, wrapW * .62);
   bench.style.gridTemplateColumns = `${Math.round(lw)}px minmax(0, 1fr)`;
   return lw;
@@ -826,7 +886,7 @@ function initExamples(list) {
     ms.set(new Set(cur.buttons.filter(([, a, b]) => a <= t && t < (b ?? dur) + .08).map(([b]) => b)));
     pointer(cur.pointer, cur.buttons, t);
     drawScrub($("#ex-scrub-c"), cur.progress, t, dur);
-    const leftH = $("#ex-left").offsetHeight, used = $("#ex-task-box").offsetHeight + 14 + $(".read", $("#ex-right")).offsetHeight + 12;
+    const leftH = $("#ex-left").offsetHeight, used = $("#ex-task-box").offsetHeight + 14 + $(".read", $("#ex-right")).offsetHeight + 12 + $(".charts .label").offsetHeight + 6;
     charts(t, dur, Math.max(220, leftH - used));
   }
   // One canvas: every row has the same label height, plot height and width.
@@ -843,14 +903,14 @@ function initExamples(list) {
         const lanes = [...cur.lanes.map(k => ["key", k]), ...(cur.buttons.length ? [["mouse", null]] : [])], lh = PLOT / Math.max(1, lanes.length);
         lanes.forEach(([kind, k], j) => {
           const ly = py + j * lh, items = kind === "key" ? cur.keys.filter(e => e[0] === k).map(e => [e[1], e[2]]) : cur.buttons.map(b => [b[1], b[2]]);
-          items.forEach(([a, b]) => { ctx.fillStyle = a <= t ? BLUE : "#dde3ea"; ctx.fillRect(X(a), ly + 2, Math.max(2, X((b ?? dur) - a)), lh - 4); });
+          items.forEach(([a, b]) => { ctx.fillStyle = a <= t ? GAME : "#dde3ea"; ctx.fillRect(X(a), ly + 2, Math.max(2, X((b ?? dur) - a)), lh - 4); });
         });
       } else {
         const a = lo ?? Math.min(...s.map(p => p[1])), b = hi ?? Math.max(...s.map(p => p[1])), span = b - a || 1;
         const Y = v => py + PLOT - 4 - (v - a) / span * (PLOT - 8);
         const v = valueAt(s, t), txt = name === "progress" ? Math.round(v * 100) + "%" : String(v);
         ctx.fillStyle = INK; ctx.fillText(txt, w - ctx.measureText(txt).width, y0 + 12);
-        [[dur, "#cfd6de", 1.5], [t, BLUE, 2]].forEach(([upto, color, lw]) => {
+        [[dur, "#cfd6de", 1.5], [t, GAME, 2]].forEach(([upto, color, lw]) => {
           ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.beginPath(); let prev = null;
           s.forEach(([tt, vv]) => { if (tt > upto) return; const x = X(tt), y = Y(vv); if (prev === null) ctx.moveTo(x, y); else { ctx.lineTo(x, Y(prev)); ctx.lineTo(x, y); } prev = vv; });
           if (prev !== null && upto < dur) ctx.lineTo(X(upto), Y(prev));
@@ -904,7 +964,7 @@ function ray(ctx, x0, y0, x1, y1, color, width, head) {
   ctx.lineTo(x1 + Math.cos(a + 2.5) * 7, y1 + Math.sin(a + 2.5) * 7); ctx.lineTo(x1 + Math.cos(a - 2.5) * 7, y1 + Math.sin(a - 2.5) * 7); ctx.fill();
 }
 const dot = (ctx, x, y, r, fill, stroke) => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); } };
-const RED = "#d64545", AMBER = "#e8a33d", GOLD = "#ffd23f";
+const RED = "#e04040", AMBER = "#f0a630", GOLD = "#ffd23f";
 const MAPS = {
   // The race: road across, distance ahead upwards; the dashed line is where it steers.
   "43_pico-world-race"(ctx, w, h, v) {
@@ -913,8 +973,8 @@ const MAPS = {
     ctx.strokeStyle = "#c9d1da"; ctx.setLineDash([5, 7]); ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.stroke(); ctx.setLineDash([]);
     (v.obstacles || []).forEach(([side, d]) => { if (d <= 200) { ctx.fillStyle = INK3; ctx.fillRect(X(side * 1.08) - 5, Y(d) - 5, 10, 10); } });
     (v.tokens || []).forEach(([lat, d]) => { if (d <= 200 && d >= -5) dot(ctx, X(lat), Y(d), 4.5, GOLD, "#b8901a"); });
-    (v.opponents || []).forEach(([lat, d]) => { if (d <= 200 && d >= -8) { ctx.fillStyle = BLUE; ctx.fillRect(X(lat) - 4.5, Y(d) - 7, 9, 14); } });
-    if (typeof v.target === "number") { ctx.setLineDash([4, 4]); ray(ctx, X(v.target), Y(0), X(v.target), Y(120), ACCENT, 2); ctx.setLineDash([]); }
+    (v.opponents || []).forEach(([lat, d]) => { if (d <= 200 && d >= -8) { ctx.fillStyle = PLAYER; ctx.fillRect(X(lat) - 4.5, Y(d) - 7, 9, 14); } });
+    if (typeof v.target === "number") { ctx.setLineDash([4, 4]); ray(ctx, X(v.target), Y(0), X(v.target), Y(120), TURN, 2); ctx.setLineDash([]); }
     ctx.fillStyle = INK; ctx.fillRect(X(v.lateral) - 5.5, Y(0) - 9, 11, 18);
     if (v.turn) ray(ctx, X(v.lateral), Y(0) - 12, X(v.lateral) + v.turn * 16, Y(0) - 20, INK, 2, true);
   },
@@ -922,13 +982,13 @@ const MAPS = {
   "131_touhou-tales-of-danmaku"(ctx, w, h, v) {
     const { X, Y, k } = frame(w, h, v.b);
     ctx.fillStyle = "#e8edf2"; ctx.fillRect(X(v.b[0]), Y(v.b[1]), (v.b[2] - v.b[0]) * k, (v.b[3] - v.b[1]) * k);
-    if (typeof v.tx === "number") { ctx.setLineDash([3, 4]); ray(ctx, X(v.tx), Y(0), X(v.tx), Y(v.b[3]), BLUE, 1); ctx.setLineDash([]); }
+    if (typeof v.tx === "number") { ctx.setLineDash([3, 4]); ray(ctx, X(v.tx), Y(0), X(v.tx), Y(v.b[3]), PLAYER, 1); ctx.setLineDash([]); }
     if (v.boss) { ctx.fillStyle = INK3; ctx.fillRect(X(v.boss[0] - v.boss[2] / 2), Y(v.boss[1] - v.boss[3] / 2), v.boss[2] * k, v.boss[3] * k); }
     (v.en || []).forEach(([x, y, r]) => dot(ctx, X(x), Y(y), Math.max(2.5, r * k), INK3));
     const [px, py] = v.p;
     (v.cand || []).forEach(([x, y, s]) => ray(ctx, X(px), Y(py), X(x), Y(y), s < 0 ? RED : s < 5 ? AMBER : "#b9bec4", 1));
     const pick = v.pick && (v.cand || []).find(c => c[3] === v.pick[2] && Math.abs(c[4] - v.pick[0]) < .01 && Math.abs(c[5] - v.pick[1]) < .01);
-    if (pick && (pick[4] || pick[5])) ray(ctx, X(px), Y(py), X(pick[0]), Y(pick[1]), ACCENT, 2.5, true);
+    if (pick && (pick[4] || pick[5])) ray(ctx, X(px), Y(py), X(pick[0]), Y(pick[1]), TURN, 2.5, true);
     (v.th || []).forEach(([x, y, r]) => dot(ctx, X(x), Y(y), Math.max(1.8, (r > 0 ? r : 2) * k), RED));
     dot(ctx, X(px), Y(py), 4, INK); dot(ctx, X(px), Y(py), 7, null, INK);
   },
@@ -944,12 +1004,12 @@ const MAPS = {
     const { X, Y } = frame(w, h, nav.box);
     nav.nodes.forEach(([x, y], i) => {
       const f = nav.rank[i];
-      dot(ctx, X(x), Y(y), 2.2, f === null ? "#dde3ea" : `rgba(221, 107, 32, ${(1 - f) * .9 + .08})`);
+      dot(ctx, X(x), Y(y), 2.2, f === null ? "#dde3ea" : alpha(TURN, (1 - f) * .9 + .08));
     });
     (v.en || []).forEach(([x, y]) => { if (x !== null) { ctx.fillStyle = INK3; ctx.fillRect(X(x) - 4, Y(y) - 4, 8, 8); } });
     const [px, py, gx, gy] = v.p;
     v.opts.forEach(([x, y, fatal], i) => { if (i !== v.pick) { if (fatal) ctx.setLineDash([3, 3]); ray(ctx, X(px), Y(py), X(x), Y(y), fatal ? RED : "#9aa3ad", 1); ctx.setLineDash([]); } });
-    if (v.pick >= 0) { const [x, y] = v.opts[v.pick]; ray(ctx, X(px), Y(py), X(x), Y(y), ACCENT, 2.5, true); }
+    if (v.pick >= 0) { const [x, y] = v.opts[v.pick]; ray(ctx, X(px), Y(py), X(x), Y(y), TURN, 2.5, true); }
     const [sx, sy] = v.star; ctx.fillStyle = GOLD; ctx.strokeStyle = "#b8901a"; ctx.beginPath();
     for (let i = 0; i < 10; i++) { const r = i % 2 ? 3.2 : 7.5, a = -Math.PI / 2 + i * Math.PI / 5; ctx.lineTo(X(sx) + r * Math.cos(a), Y(sy) + r * Math.sin(a)); }
     ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -963,11 +1023,11 @@ const MAPS = {
     if (v.crate) { ctx.fillStyle = GOLD; ctx.strokeStyle = "#b8901a"; ctx.fillRect(X(v.crate[0]) - 5, Y(v.crate[1]) - 3.5, 10, 7); ctx.strokeRect(X(v.crate[0]) - 5, Y(v.crate[1]) - 3.5, 10, 7); }
     (v.en || []).forEach(([x, y, r]) => dot(ctx, X(x), Y(y), Math.max(2.2, r * k), RED));
     const [px, py] = v.p;
-    if (v.aim) { ctx.setLineDash([3, 3]); ray(ctx, X(px), Y(py), X(v.aim[0]), Y(v.aim[1]), BLUE, 1.2); ctx.setLineDash([]); }
+    if (v.aim) { ctx.setLineDash([3, 3]); ray(ctx, X(px), Y(py), X(v.aim[0]), Y(v.aim[1]), PLAYER, 1.2); ctx.setLineDash([]); }
     const scores = v.dirs.map(d => d[2]), lo = Math.min(...scores), hi = Math.max(...scores);
     v.dirs.forEach(([dx, dy, s], i) => {
       const len = 6 + 22 * (s - lo) / ((hi - lo) || 1);
-      ray(ctx, X(px), Y(py), X(px) + dx * len, Y(py) + dy * len, i === v.pick ? ACCENT : "#9aa3ad", i === v.pick ? 2.5 : 1.2, i === v.pick);
+      ray(ctx, X(px), Y(py), X(px) + dx * len, Y(py) + dy * len, i === v.pick ? TURN : "#9aa3ad", i === v.pick ? 2.5 : 1.2, i === v.pick);
     });
     dot(ctx, X(px), Y(py), 4, INK);
   },
@@ -1182,22 +1242,93 @@ function initVLM(index, active) {
 }
 
 /* ============ the two players on one page ============ */
-// One row of game tabs drives both players; the buttons in the header slide from one to the other.
+// One row of game tabs drives both players. Scrolling through the chapter's hold slides the
+// page from the Coding Player to the VLM Player and back; the slide follows the scroll itself,
+// and stopping half way finishes it towards the nearer player. The names in the header scroll
+// the page to their player.
 function initPlayers(index) {
-  let face = 0;
+  let face = 0, f = 0;
   const coding = initCoding(index, () => face === 0), vlm = initVLM(index, () => face === 1);
+  const pin = $("#pv-pin"), track = $("#track"), faces = [$("#face-code"), $("#face-vlm")];
+  const names = [...document.querySelectorAll("#who button")], bar = $("#who-bar");
+  const A = .4, B = .6;   // the slide takes this part of the hold
   $("#pv-tabs").innerHTML = index.map((g, i) => `<button data-i="${i}">${esc(g.title)}</button>`).join("");
   function open(i) {
     document.querySelectorAll("#pv-tabs button").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
     coding.open(i); vlm.open(i);
   }
   $("#pv-tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) open(+b.dataset.i); });
-  $("#who").addEventListener("click", e => {
-    const b = e.target.closest("button"); if (!b || +b.dataset.face === face) return;
-    face = +b.dataset.face;
-    document.querySelectorAll("#who button").forEach(x => x.classList.toggle("on", x === b));
-    $("#track").classList.toggle("vlm", face === 1);
-    coding.sync(); vlm.sync();
-  });
+  function slide() {
+    const x = clamp((progressIn(pin) - A) / (B - A), 0, 1);
+    f = x * x * (3 - 2 * x);
+    track.style.transform = `translateX(${(-f * 100).toFixed(3)}%)`;
+    faces[0].style.opacity = 1 - .75 * f; faces[1].style.opacity = .25 + .75 * f;
+    const [a, b] = names.map(n => [n.offsetLeft, n.offsetWidth]);
+    bar.style.left = a[0] + (b[0] - a[0]) * f + "px"; bar.style.width = a[1] + (b[1] - a[1]) * f + "px";
+    const now = f < .5 ? 0 : 1;
+    if (now !== face) { face = now; names.forEach((n, i) => n.classList.toggle("on", i === face)); coding.sync(); vlm.sync(); }
+  }
+  const at = q => topOf(pin) + q * (pin.offsetHeight - pin.firstElementChild.offsetHeight);
+  let idle = 0;
+  addEventListener("scroll", () => {
+    slide(); clearTimeout(idle);
+    idle = setTimeout(() => { if (f > 0 && f < 1) scrollTo({ top: at(f < .5 ? A - .03 : B + .03), behavior: "smooth" }); }, 180);
+  }, { passive: true });
+  $("#who").addEventListener("click", e => { const b = e.target.closest("button"); if (b) scrollTo({ top: at(+b.dataset.face ? .8 : .2), behavior: "smooth" }); });
+  document.querySelectorAll("#players .sname").forEach(m => m.addEventListener("click", () => scrollTo({ top: at(m.dataset.k === "vlm" ? .8 : .2), behavior: "smooth" })));
+  addEventListener("resize", slide);
+  slide();
   near($("#players"), () => open(0));   // the first traces are ~1 MB each: fetch them on approach
+}
+
+/* ============ results: placeholders until the experiments are done ============ */
+function tbdify(s) { return esc(s).replace(/x{2,}/g, m => `<span class="tbd">${m}</span>`); }
+function initResults() {
+  // A chart's frame with nothing plotted yet: its scale, its categories, and an xxx where each
+  // value will go. Bars stand on the baseline, so no height is implied.
+  function skeleton(svg) {
+    const d = svg.dataset, w = svg.clientWidth, h = svg.clientHeight, cats = d.cats.split("|"), series = d.series ? d.series.split("|") : [null];
+    const L = 34, T = 26, B = 28, pw = w - L, ph = h - T - B, base = T + ph;
+    const COL = ["#9aa3ad", PLAYER];
+    let out = `<text x="0" y="12" class="ax">${esc(d.axis)}</text>`;
+    [0, 25, 50, 75, 100].forEach(v => { const y = base - v / 100 * ph; out += `<line x1="${L}" x2="${w}" y1="${y}" y2="${y}" class="grid"/><text x="${L - 8}" y="${y + 4}" class="tick" text-anchor="end">${v}</text>`; });
+    const slot = pw / cats.length, bw = Math.min(64, (slot - 28) / series.length);
+    cats.forEach((c, i) => {
+      const mid = L + (i + .5) * slot;
+      out += `<text x="${mid}" y="${base + 18}" class="tick" text-anchor="middle">${esc(c)}</text>`;
+      series.forEach((_, j) => {
+        const x = mid + (j - (series.length - 1) / 2) * (bw + 8);
+        out += `<line x1="${x - bw / 2}" x2="${x + bw / 2}" y1="${base}" y2="${base}" class="foot" stroke="${series.length > 1 ? COL[j] : "#9aa3ad"}"/><text x="${x}" y="${base - 10}" class="tbd" text-anchor="middle">xxx</text>`;
+      });
+    });
+    if (series[0]) {
+      let x = w;
+      [...series].reverse().forEach((n, k) => { const j = series.length - 1 - k; x -= n.length * 7 + 34; out += `<line x1="${x}" x2="${x + 14}" y1="8" y2="8" class="foot" stroke="${COL[j]}"/><text x="${x + 20}" y="12" class="tick">${esc(n)}</text>`; });
+    }
+    svg.innerHTML = out;
+  }
+  const charts = [...document.querySelectorAll("svg.skel")];
+  const draw = () => charts.forEach(skeleton);
+  draw(); addEventListener("resize", draw); document.fonts && document.fonts.ready.then(draw);
+
+  // the leaderboard: models ranked, then the policy and people as reference rows
+  const MODELS = [["VLM xxx", "Closed VLM"], ["VLM xxx", "Closed VLM"], ["VLM xxx", "Open VLM, xxB"], ["VLM xxx", "Open VLM, xxB"],
+    ["Agent xxx", "Computer-use agent"], ["Ours, xxB", "VLM trained on our episodes"]];
+  const REF = [["Coding Player", "Policy written by a coding agent"], ["People", "Human players"]];
+  const SCORE = ["Progress", "Success", "Cost per solved task"];
+  const COLS = { all: SCORE, held: SCORE };
+  function board(v) {
+    document.querySelectorAll("#lb-tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+    const cols = COLS[v];
+    const row = ([name, kind], ref, first) => `<tr class="${ref ? "ref" : ""}${first ? " split" : ""}"><td>${tbdify(name)}</td><td class="kind">${tbdify(kind)}</td>${cols.map(() => `<td class="r tbd">xxx</td>`).join("")}</tr>`;
+    $("#lb").innerHTML = `<table class="tbl"><tr><th>Player</th><th>Kind</th>${cols.map(c => `<th class="r">${esc(c)}</th>`).join("")}</tr>`
+      + MODELS.map(m => row(m, false, false)).join("") + REF.map((m, i) => row(m, true, i === 0)).join("") + "</table>";
+  }
+  $("#lb-tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) board(b.dataset.v); });
+  board("all");
+
+  $("#bib-copy").addEventListener("click", () => {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText($("#bib").textContent).then(() => { $("#bib-copy").textContent = "Copied"; setTimeout(() => $("#bib-copy").textContent = "Copy", 1500); });
+  });
 }
