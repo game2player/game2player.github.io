@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Game2Player</title>
+<title>Game2Player: Scaling Gameplay Experience for Visual Agents through Environment–Player Co-Development</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261027-results2">
 </head>
 <body>
 <!-- line icons, drawn like the ones in the loop -->
@@ -29,12 +29,12 @@
   <div class="wrap">
     <a class="brand name" href="#top" data-go="top"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></a>
     <div class="links" id="nav-links">
-      <a href="#games" data-go="games">Games</a><a href="#abstract" data-go="abstract">Abstract</a><a href="#contributions" data-go="contributions">Contributions</a><a href="#loop" data-go="loop">The Loop</a><a href="#examples" data-go="examples">Examples</a><a href="#players" data-go="players">Players</a><a href="#results" data-go="results">Results</a><a href="#cite" data-go="cite">Citation</a>
+      <a href="#games" data-go="games">Games</a><a href="#abstract" data-go="abstract">Abstract</a><a href="#contributions" data-go="contributions">Contributions</a><a href="#leaderboard" data-go="leaderboard">Leaderboard</a><a href="#loop" data-go="loop">Method</a><a href="#examples" data-go="examples">Trajectories</a><a href="#players" data-go="players">Player Comparison</a><a href="#results" data-go="results">Results</a><a href="#cite" data-go="cite">Citation</a>
     </div>
     <div class="acts">
       <a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-paper"/></svg>Paper</a>
       <a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-code"/></svg>Code</a>
-      <a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a>
+      <a class="btn sm soon" title="Release under review" aria-label="Dataset — release under review" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a>
     </div>
   </div>
 </nav>
@@ -44,13 +44,25 @@
     <canvas id="wall"></canvas>
     <div class="title-band" id="title-band">
       <h1 class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></h1>
-      <p class="sub">From Automated Co-Synthesis of Game Environments and Code Policies to VLM Players</p>
+      <p class="sub">Scaling Gameplay Experience for Visual Agents through Environment–Player Co-Development</p>
+      <p class="tldr">We co-develop verifiable game environments with the Coding Player and VLM Player, turning their gameplay into training data for visual agents.</p>
+      <dl class="hero-stats" aria-label="Gameplay training data">
+        <div><dt>Games</dt><dd>550+</dd></div>
+        <div><dt>Trajectories</dt><dd>~3K</dd></div>
+        <div><dt>Steps</dt><dd>1M</dd></div>
+        <div><dt>Hours of gameplay</dt><dd>250</dd></div>
+      </dl>
       <p class="people"><span class="tbd-slot">Authors</span></p>
-      <p class="affil"><span class="tbd-slot">Affiliations</span></p>
+      <ul class="affiliations" aria-label="Author affiliations">
+        <li><img class="logo-uiuc" src="assets/affiliations/illinois.svg" alt="University of Illinois Urbana-Champaign" width="156" height="27"></li>
+        <li><img class="logo-ucsb" src="assets/affiliations/ucsb.svg" alt="UC Santa Barbara" width="190" height="14"></li>
+        <li><img class="logo-gt" src="assets/affiliations/georgia-tech.png" alt="Georgia Institute of Technology" width="148" height="53"></li>
+        <li><img class="logo-ibm" src="assets/affiliations/ibm.svg" alt="IBM" width="76" height="30"></li>
+      </ul>
       <div class="links">
         <a class="btn soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-paper"/></svg>Paper</a>
         <a class="btn soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-code"/></svg>Code</a>
-        <a class="btn soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a>
+        <a class="btn soon" title="Release under review" aria-label="Dataset — release under review" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a>
         <a class="btn soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-model"/></svg>Models</a>
         <a class="btn" href="#leaderboard" data-go="leaderboard"><svg class="i"><use href="#i-board"/></svg>Leaderboard</a>
       </div>
@@ -69,9 +81,9 @@
 <section class="chapter flow" id="abstract">
   <header class="wrap intro"><h2 class="sec">Abstract</h2></header>
   <div class="wrap"><div class="prose">
-    <p>Games test multimodal agents on perception, long-horizon planning and precise control. Turning a game into an environment that can score an agent, or train one, is still manual work. Interactive benchmarks integrate a few dozen games by hand or ask a model to judge the play. Offline benchmarks ask questions about screenshots instead of letting models play. Large gameplay corpora pair video with actions but rarely with goals or outcomes that can be checked.</p>
-    <p>We present <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, an agentic pipeline that turns games from the open web into environments whose tasks are checked against the game's own state. A Builder agent packages each game for offline play with a fixed random seed, exposes its internal state, and writes tasks whose start, progress and success are all computed from that state. A task is only useful if its checks are right, so every task is then played. Coding agents write programmatic policies, VLM agents play from pixels, and the problems they find go back to the Builder for repair.</p>
-    <p>The same play becomes training data. One runtime records policies, VLM agents and people with the same actions. It logs the game state and the task progress at every step and keeps the reasoning of model players. From <span class="tbd">xxx</span> web games, Game2Player builds <span class="tbd">xxx</span> environments with <span class="tbd">xxx</span> tasks. Policies written by coding agents solve <span class="tbd">xxx</span>% of these tasks, compared with <span class="tbd">xxx</span>% for the strongest VLM agent, and a <span class="tbd">xxx</span>B VLM trained on the collected play improves by <span class="tbd">xxx</span> on held-out games.</p>
+    <p>Games provide diverse environments for training and evaluating visual agents on perception, planning, and control. Existing efforts often collect agent experience from a small set of games or rely on human gameplay data. <strong>More scalable methods are needed</strong> to collect interaction experience across diverse games, with well-defined tasks and verifiable outcomes, for developing visual agentic intelligence.</p>
+    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; the Coding Player and VLM Player attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 550+ games for data collection and construct <strong>PlayerBench</strong>, a held-out benchmark spanning 50 games and over 200 tasks that presents greater challenges than GameWorld.</p>
+    <p>We use instrumented environments, code policies, and VLM Players acting as teachers to collect diverse game tasks and trajectories at scale for <strong>visual policy distillation</strong>. We train a 4B VLM agent with <strong>progress-weighted SFT</strong>, assigning greater weight to steps that advance task progress. The agent plays from pixels, achieving progress scores of 49.5 on GameWorld and 31.1 on <strong>PlayerBench</strong> with thinking on, up from 26.9 and 15.9 for the base model.</p>
   </div></div>
 </section>
 
@@ -79,12 +91,25 @@
   <header class="wrap intro"><h2 class="sec">Contributions</h2></header>
   <div class="wrap">
     <div class="contrib">
-      <div style="--tone: var(--game); --tint: var(--game-soft)"><span class="ic"><svg class="i"><use href="#i-env"/></svg></span><h4>From web games to verifiable environments</h4>
-        <p>An agentic pipeline turns games found on the open web into offline environments with a fixed seed. Every task has a start condition, a progress measure and a success check computed from the game's own state. A Builder agent makes the environments, player agents test them, and the two are linked by reports and repairs.</p></div>
-      <div style="--tone: var(--player); --tint: var(--player-soft)"><span class="ic"><svg class="i"><use href="#i-data"/></svg></span><h4>A suite of environments and a dataset of play</h4>
-        <p><span class="tbd">xxx</span> environments with <span class="tbd">xxx</span> tasks from <span class="tbd">xxx</span> web games, and <span class="tbd">xxx</span> hours of play by policies and VLM agents. One runtime records all of it in the same format, with the game state, the task progress and the player's reasoning at every step.</p></div>
-      <div style="--tone: var(--turn); --tint: var(--turn-soft)"><span class="ic"><svg class="i"><use href="#i-board"/></svg></span><h4>Experiments on players and training</h4>
-        <p>The player loop raises task correctness from <span class="tbd">xxx</span>% to <span class="tbd">xxx</span>%. Policies written by coding agents solve <span class="tbd">xxx</span>% of the tasks against <span class="tbd">xxx</span>% for VLM agents. VLMs trained on the collected play improve on games they have never seen.</p></div>
+      <div style="--tone: var(--game); --tint: var(--game-soft)"><span class="ic"><svg class="i"><use href="#i-env"/></svg></span><h4>Verifiable game environments</h4>
+        <p>Game-state-based task definitions and progress and success checks for web games.</p></div>
+      <div style="--tone: var(--player); --tint: var(--player-soft)"><span class="ic"><svg class="i"><use href="#i-loop"/></svg></span><h4>Environment–player co-development</h4>
+        <p>An iterative loop that jointly refines game environments and player policies through gameplay feedback.</p></div>
+      <div style="--tone: var(--turn); --tint: var(--turn-soft)"><span class="ic"><svg class="i"><use href="#i-data"/></svg></span><h4>Scalable collection &amp; visual policy distillation</h4>
+        <p>Fast code policy rollouts and VLM demonstrations for training a 4B visual agent with progress-weighted SFT.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter flow" id="leaderboard">
+  <header class="wrap intro">
+    <h2 class="sec">Leaderboard</h2>
+    <div class="method-summary"><p>PlayerBench has 50 games and 287 tasks held out from training. Each model plays every task once, with at most 100 steps.</p></div>
+  </header>
+  <div class="wrap">
+    <div class="lb">
+      <table><thead><tr><th class="rk">#</th><th>Model</th><th class="sort" data-k="progress">Progress</th><th class="sort" data-k="success">Success</th></tr></thead>
+      <tbody id="board-rows"></tbody></table>
     </div>
   </div>
 </section>
@@ -92,11 +117,11 @@
 <!-- Each chapter: its introduction scrolls by, then the interactive part below it stays put. -->
 <section class="chapter" id="loop">
   <header class="wrap intro">
-    <h2 class="sec">The Loop</h2>
-    <div class="prose">
-      <p>Each game goes through a loop of agents. The <span class="sname" data-k="scout"></span> looks at where the game is published, how it is built and whether its state can be read, and decides whether to take it. The <span class="sname" data-k="builder"></span> gets the game running offline with a fixed seed, exposes its state through <code>game_api.js</code> and writes tasks. It checks each task before the task ships.</p>
-      <p>The <span class="sname" data-k="env"></span> is then played by the <span class="sname" data-k="policy"></span> and the <span class="sname" data-k="vlm"></span> on every task. Problems come back to the Builder as <span class="sname" data-k="reports"></span>. A VLM Player may see no response to its keys, or a Coding Player may need a variable the game does not expose yet. The Builder checks each report against the recording before it changes anything. Every episode is kept as <span class="sname" data-k="data"></span>.</p>
-      <p class="hint">Click a stage in the figure, or a name above, to see what it did for one game, Pico World Race.</p>
+    <h2 class="sec">The Game2Player Pipeline</h2>
+    <div class="method-summary">
+      <p>Each game goes through a loop of agents. The <span class="sname" data-k="scout"></span> selects games based on their source, engine, and access to game state. The <span class="sname" data-k="builder"></span> adapts each game for offline play, exposes game state through <code>game_api.js</code>, and defines verifiable tasks using engine-specific skills for Unity, Flash, or PICO-8.</p>
+      <p>The <span class="sname" data-k="env"></span> are then tested on every task by the <span class="sname" data-k="policy"></span>, which develops code policies using game state, and the <span class="sname" data-k="vlm"></span>, which plays from screenshots. Problems return to the Builder as <span class="sname" data-k="reports"></span>: a key press may have no effect, or a policy may need a state variable that is not yet exposed. The Builder checks the recorded trajectories before repairing the environment or task checks; the players then retry tasks and refine their policies.</p>
+      <p>The loop produces two outputs. Games enter the <span class="sname" data-k="envs"></span> collection after validation through gameplay. We retain gameplay trajectories as <span class="sname" data-k="data"></span>, recording observations, actions, and task progress for visual policy distillation.</p>
     </div>
   </header>
   <div class="pin" style="--hold: 55vh">
@@ -108,10 +133,11 @@
           <canvas id="cycle-fx"></canvas>
           <div class="logos" id="logos"></div>
           <button class="node" data-k="scout"></button>
-          <button class="node" data-k="builder"></button>
+          <div class="pgroup bgroup" id="bgroup"><button class="node" data-k="builder"></button><div class="skills" id="skills"></div></div>
           <button class="node" data-k="env"></button>
           <div class="pgroup" id="pgroup"><button class="node" data-k="policy"></button><button class="node" data-k="vlm"></button></div>
           <button class="node" data-k="reports"></button>
+          <button class="node" data-k="envs"></button>
           <button class="node" data-k="data"></button>
         </div>
       </div>
@@ -122,16 +148,16 @@
 
 <section class="chapter" id="examples">
   <header class="wrap intro">
-    <h2 class="sec">Examples</h2>
-    <div class="prose">
-      <p>A task is defined on the game's own state. The Builder writes where it starts, how its progress is measured and when it is done, all as reads of variables in the running game. The three episodes below were played by the Coding Player.</p>
-      <p>The progress is <span class="em">real</span> and <span class="em">continuous</span>. It is read from the game itself at every step, not estimated from the screen or scored by a model. It rises with every bit of headway the player makes, so even a run that fails shows how far it got.</p>
+    <h2 class="sec">Gameplay Trajectory Example</h2>
+    <div class="method-summary">
+      <p>The three gameplay trajectories below were collected by code policies developed by the Coding Player. Each follows a task defined by the Builder, with start conditions, progress, and success checks grounded in game state.</p>
+      <p>Each trajectory pairs <span class="em">observations and actions</span> with <span class="em">verifiable task progress</span>. Progress is computed from game state at each step, providing task feedback for environment validation and visual policy distillation.</p>
     </div>
     <div class="signals">
-      <div><h4>Task prompt</h4><p>The instruction exactly as the player receives it. Policies, VLMs and people get the same one.</p></div>
-      <div><h4>Progress</h4><p>A number from 0 to 1 that the game reports at every step of the episode.</p></div>
-      <div><h4>Game state</h4><p>The game's own variables behind the progress, such as the level or the score, logged with every frame.</p></div>
-      <div><h4>Inputs</h4><p>Every key press, click and pointer move, on the same clock as the video and the state.</p></div>
+      <div><h4>Task prompt</h4><p>The task instruction shared by the Coding Player and VLM Player.</p></div>
+      <div><h4>Progress</h4><p>Task completion from 0 to 1, computed from game state at each step.</p></div>
+      <div><h4>Game state</h4><p>Variables used to track the task, such as level or score, recorded alongside gameplay.</p></div>
+      <div><h4>Inputs</h4><p>Key presses, clicks, and pointer movements synchronized with observations and game state.</p></div>
     </div>
   </header>
   <div class="pin" id="ex-pin" style="--hold: 55vh">
@@ -155,7 +181,7 @@
           <div class="charts"><span class="label">Recorded at every step</span><canvas id="ex-charts"></canvas></div>
         </div>
       </div>
-      <p class="fig-cap">Three recorded episodes. On the left are the recording, the progress curve in the bar beneath it, and the keys and mouse buttons as they are pressed. On the right are the task prompt, the progress and three game variables over the whole episode, and the inputs. The vertical line marks the current moment.</p>
+      <p class="fig-cap">Select a game to inspect its trajectory. Video and inputs appear on the left; the task, progress, and game-state traces appear on the right. Scrub the timeline to inspect a step; the vertical line marks the current time.</p>
     </div></div>
   </div>
 </section>
@@ -163,11 +189,11 @@
 <!-- the two players on one page; scrolling on (or the buttons in the header) slides from one to the other -->
 <section class="chapter" id="players">
   <header class="wrap intro">
-    <h2 class="sec">Players</h2>
-    <div class="prose">
-      <p>Every task is played by two kinds of player. The <span class="sname" data-k="policy"></span> is a coding agent that studies the game and writes a policy in Python. The policy reads the state the Builder exposes and plays in real time, so a task can be played quickly and many times.</p>
-      <p>The <span class="sname" data-k="vlm"></span> plays from screenshots alone. It looks at the screen, reasons and presses keys, and the game pauses while it thinks. A slow model is therefore judged on its decisions rather than its speed. It shows whether a task can be understood and played from what is on the screen.</p>
-      <p class="hint"><span class="desktop-hint">Scroll on to turn from one player to the other, or click a name.</span><span class="compact-hint">Tap a player tab below to switch between the Coding Player and VLM Player.</span></p>
+    <h2 class="sec">Comparing Coding Player and VLM Player</h2>
+    <div class="method-summary">
+      <p>The <span class="sname" data-k="policy"></span> develops Python code policies that read the game state exposed by the Builder and execute actions in real time. Once written, these policies support fast, repeated rollouts for task validation and scalable trajectory collection.</p>
+      <p>The <span class="sname" data-k="vlm"></span> observes screenshots, reasons about the task, and selects actions without access to internal game state. The game pauses during model inference. VLM Players acting as teachers provide visual demonstrations for policy distillation; both player types return feedback to the Builder.</p>
+      <p class="hint"><span class="desktop-hint">Scroll or select a player to compare its observations, decisions, and actions.</span><span class="compact-hint">Select a player tab below to compare its observations, decisions, and actions.</span></p>
     </div>
   </header>
   <div class="pin" id="pv-pin" style="--hold: 150vh">
@@ -220,53 +246,52 @@
           </div>
         </div>
       </div></div>
-      <p class="fig-cap">The same tasks played by both players. For the Coding Player the page shows the recording, a map of what the policy reads at this step, the fields it acts on, and its code with the lines that ran at this step lit. For the VLM Player it shows the recording, the screenshots in the model's context, what it saw and did at this step, and its reasoning. The frame freezes where the game paused for the model.</p>
+      <p class="fig-cap">The Coding Player view shows gameplay, exposed state, and executed policy code. The VLM Player view shows gameplay, screenshot context, reasoning, and actions, including pauses during inference.</p>
     </div></div>
   </div>
 </section>
 
-<!-- Results: every number is a placeholder until the experiments are done -->
+<!-- Results: the trained models on PlayerBench and GameWorld, then one task before and after training -->
 <section class="chapter flow" id="results">
   <header class="wrap intro">
     <h2 class="sec">Results</h2>
-    <p class="lead">The experiments are still running. The figures and the table below show what will be reported, and every <span class="tbd">xxx</span> is a number still to come.</p>
+    <div class="method-summary"><p>We fine-tune Qwen3.5-4B and Qwen3.5-9B on gameplay recorded by Game2Player and test them on PlayerBench, the 50 games held out from training, and on GameWorld, 34 games from another benchmark. Every model plays each task once with the same seed and at most 100 steps. Progress is averaged over a game's tasks and then over games, and success is the share of tasks completed. With thinking on, a model can write up to 32,768 tokens per step, and 512 with it off. The model trained only on Coding Player gameplay is prompted without the short note, as in its training data.</p></div>
   </header>
   <div class="wrap">
-    <div class="block" id="pipeline">
-      <div class="block-head"><h3>Pipeline quality</h3><span class="soon-tag">Placeholder</span></div>
-      <p class="note">We freeze the pipeline and run it on <span class="tbd">xxx</span> new web games chosen by a rule fixed in advance.</p>
-      <figure class="half"><svg class="skel" data-kind="bars" data-cats="Full loop|Builder alone|Coding agent alone" data-axis="Correct tasks (%)"></svg></figure>
-      <p class="fig-cap">Share of tasks that people confirm as correct, for the full loop, for the Builder alone before any report, and for a coding agent given only the game and a short instruction. All three run on the same games with the same budget.</p>
-    </div>
-
-    <div class="block" id="leaderboard">
-      <div class="block-head"><h3>Leaderboard</h3><span class="soon-tag">Placeholder</span></div>
-      <p class="note">Every player gets the same harness, step budget and seeds.</p>
-      <div class="tabs lb-tabs" id="lb-tabs"><button class="on" data-v="all">All tasks</button><button data-v="held">Held-out games</button></div>
-      <div class="lb" id="lb"></div>
-      <p class="fig-cap">Progress is the share of a task completed by the end of an episode, and success is the share of episodes that complete it. The Coding Player and people are shown for reference.</p>
-    </div>
-
     <div class="block" id="training">
-      <div class="block-head"><h3>Training on collected play</h3><span class="soon-tag">Placeholder</span></div>
-      <p class="note">A VLM trained on the recorded episodes and tested on games it has never seen.</p>
-      <figure class="half"><svg class="skel" data-kind="groups" data-cats="Held-out games|Seen games|Other benchmarks" data-series="Base|Trained" data-axis="Progress (%)"></svg></figure>
-      <p class="fig-cap">Progress of the base VLM and of the same VLM after training, on held-out games, on games seen in training and on other benchmarks.</p>
+      <div class="block-head"><h3>Training on Game2Player gameplay</h3><div class="seg" id="main-metric"><button data-k="progress" class="on">Progress</button><button data-k="success">Success</button></div></div>
+      <div class="legend"><span><i class="sw base"></i>Qwen3.5 base</span><span><i class="sw ours"></i>Game2Player</span></div>
+      <div class="duo"><svg class="chart" id="main-pb"></svg><svg class="chart" id="main-gw"></svg></div>
     </div>
-  </div>
-</section>
 
-<section class="chapter flow" id="release">
-  <header class="wrap intro">
-    <h2 class="sec">Release</h2>
-    <p class="lead">What will be released with the paper.</p>
-  </header>
-  <div class="wrap">
-    <div class="release">
-      <div><svg class="i"><use href="#i-env"/></svg><h4>Environments</h4><p><span class="tbd">xxx</span> web games, each packaged to run offline with a fixed seed and to expose its state.</p><a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-code"/></svg>Code</a></div>
-      <div><svg class="i"><use href="#i-task"/></svg><h4>Tasks</h4><p><span class="tbd">xxx</span> tasks, each with a start condition, a progress measure and a success check on the game's state.</p><a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a></div>
-      <div><svg class="i"><use href="#i-play"/></svg><h4>Episodes</h4><p><span class="tbd">xxx</span> hours of play by policies, VLMs and people, with video, state, progress, inputs and reasoning on one clock.</p><a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-data"/></svg>Dataset</a></div>
-      <div><svg class="i"><use href="#i-model"/></svg><h4>Models</h4><p>VLMs trained on the episodes, <span class="tbd">xxx</span>B parameters.</p><a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-model"/></svg>Models</a></div>
+    <div class="block duo pair">
+      <div>
+        <h3>Training steps, Game2Player-9B</h3>
+        <div class="legend"><span><i class="sw pb"></i>PlayerBench</span><span><i class="sw gw"></i>GameWorld</span></div>
+        <svg class="chart" id="steps"></svg>
+      </div>
+      <div>
+        <h3>Training data</h3>
+        <div id="ablation"></div>
+      </div>
+    </div>
+
+    <div class="block" id="compare">
+      <div class="block-head"><h3>The same task before and after training</h3></div>
+      <p class="note">Qwen3.5-4B and Game2Player-4B play the same PlayerBench task with the same seed, both with thinking on. Each gets 100 steps.</p>
+      <div class="cmp" id="cmp">
+        <div class="tabs" id="cmp-tabs"></div>
+        <div class="cmp-grid">
+          <div class="cmp-side" data-k="base"></div>
+          <div class="cmp-side" data-k="ours"></div>
+          <div class="cmp-chart">
+            <div class="task"><span>Task prompt</span><p id="cmp-task"></p></div>
+            <div class="cmp-legend" id="cmp-legend"></div>
+            <div class="cmp-plot" id="cmp-plot"><canvas id="cmp-c"></canvas></div>
+            <div class="cmp-foot"><button id="cmp-play">❚❚</button><span id="cmp-time"></span></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -274,16 +299,22 @@
 <section class="chapter flow" id="cite">
   <header class="wrap intro"><h2 class="sec">Citation</h2></header>
   <div class="wrap">
-    <div class="bib"><button id="bib-copy">Copy</button><pre id="bib">@article{game2player,
-  title   = {Game2Player: From Automated Co-Synthesis of Game Environments
-             and Code Policies to VLM Players},
-  author  = {xxx},
-  journal = {arXiv preprint arXiv:xxxx.xxxxx},
-  year    = {xxxx}
+    <div class="bib"><button id="bib-copy">Copy</button><pre id="bib">@misc{game2player2026,
+  title   = {Game2Player: Scaling Gameplay Experience for Visual Agents
+             through Environment–Player Co-Development},
+  year    = {2026},
+  howpublished = {GitHub project},
+  url     = {https://github.com/game2player}
 }</pre></div>
   </div>
 </section>
+<section class="chapter flow" id="license" aria-labelledby="license-heading">
+  <header class="wrap intro"><h2 class="sec" id="license-heading">License &amp; Availability</h2></header>
+  <div class="wrap"><div class="method-summary">
+    <p>We plan to release the Game2Player code and trained models. Their licenses will be specified in the respective repositories. Gameplay data release remains under review pending copyright and redistribution considerations. We do not distribute instrumented game environments due to third-party licensing and permission constraints. All third-party games and assets remain subject to their respective owners’ rights and licenses.</p>
+  </div></div>
+</section>
 <footer class="wrap foot">Game2Player</footer>
-<script src="app.js"></script>
+<script src="app.js?v=20261027-results3"></script>
 </body>
 </html>
