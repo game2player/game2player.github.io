@@ -52,7 +52,7 @@ function progressIn(pin) {
 function topOf(el) { return el.getBoundingClientRect().top + scrollY - navH(); }
 function initNav() {
   const intro = $("#intro"), links = [...document.querySelectorAll("#nav-links a")];
-  const IDS = ["abstract", "contributions", "loop", "examples", "players", "results", "release", "cite"];
+  const IDS = ["abstract", "contributions", "loop", "examples", "players", "results", "cite"];
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
   const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + (intro.offsetHeight - innerHeight) * .72 : topOf(document.getElementById(id)) - 24;
@@ -307,9 +307,9 @@ function initLoop(S, T) {
     reports: '<path d="M4 4.5h16v11H11l-4.5 4v-4H4z"/><path d="M12 7.5v4M12 13.8v.1"/>',
     data: '<path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   };
-  const NAME = { scout: "Scout", builder: "Builder", env: "Environment", policy: "Coding Player", vlm: "VLM Player", reports: "Reports", envs: "Environments", data: "Data" };
+  const NAME = { scout: "Scout", builder: "Builder", env: "Environments", policy: "Coding Player", vlm: "VLM Player", reports: "Reports", envs: "Verified Environments", data: "Data" };
   cycle.querySelectorAll(".node").forEach(n => {
-    n.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24">${ICON[n.dataset.k]}</svg></span>${NAME[n.dataset.k]}`;
+    n.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24">${ICON[n.dataset.k]}</svg></span><span class="node-label">${n.dataset.k === "envs" ? "Verified<br>Environments" : NAME[n.dataset.k]}</span>`;
   });
   // the stages named in the text are the same buttons, small
   document.querySelectorAll(".sname[data-k]").forEach(m => {
@@ -412,7 +412,7 @@ function initLoop(S, T) {
       ],
     },
     env: {
-      what: "The game, offline and seeded, with tasks whose progress is read from the game's own state, never guessed from the screen.",
+      what: "A game adapted for offline play with action and state interfaces and task checks grounded in game state. Players test it before it can enter the verified collection.",
       dur: 10,
       steps: () => [
         ["A task", `<p class="say">${rich(S.task.instruction)}</p><div class="kv"><span>progress</span><code>${esc(S.task.field)}</code><span>goal</span><code>${S.task.start} → ${S.task.target}</code></div>`, 0],
@@ -461,7 +461,7 @@ function initLoop(S, T) {
       },
     },
     envs: {
-      what: "A game leaves the loop once its tasks hold up in play and a policy can solve most of them. It runs offline with a fixed seed and its state exposed.",
+      what: "Games enter this collection after their task checks are validated through gameplay and a code policy can solve most tasks in the game environment. Environments that do not meet these criteria are excluded.",
       dur: 10,
       steps: () => [
         ["Runs offline", `<img class="fill" src="${S.released.shot}" alt=""><div class="over">${chip(logo("pico8.svg") + "PICO-8", .4)}${chip("Fixed seed", .7)}${chip("<code>game_api.js</code>", 1)}</div>`, 0, "media"],
