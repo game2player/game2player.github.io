@@ -152,6 +152,7 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
 .intro .lead { margin: 12px 0 0; max-width: 780px; font: 17px/1.6 var(--sans); color: var(--ink-2); }
 /* running text: the abstract and the chapters' introductions */
 .prose { max-width: 840px; }
+#abstract .prose { max-width: 1080px; }
 .prose p { margin: 14px 0 0; font: 17px/1.7 var(--sans); color: var(--ink); }
 .prose b { font-weight: 600; }
 .prose .hint { font-size: 15px; color: var(--ink-3); }
@@ -497,3 +498,13 @@ h2.sec, .contrib h4 { text-wrap: balance; }
   .signals { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
   .block-head { flex-wrap: wrap; gap: 8px; }
 }
+
+/* Results follows the same text measure and rhythm as the method sections. */
+#results .block { max-width: 1080px; margin-top: 32px; }
+#results .block + .block { padding-top: 28px; border-top: 1px solid var(--rule); }
+#results .block-head { justify-content: flex-start; gap: 12px; flex-wrap: wrap; }
+#results .block h3 { font-weight: 600; line-height: 1.3; text-wrap: balance; }
+#results .note { max-width: 1080px; margin: 12px 0 18px; font: 17px/1.7 var(--sans); color: var(--ink); }
+#results .fig-cap { max-width: 1080px; margin-top: 12px; }
+#results .tbl { font-size: 15px; line-height: 1.5; }
+#results .tbl th, #results .tbl td { padding-top: 10px; padding-bottom: 10px; }

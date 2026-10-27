@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261027-review">
+<link rel="stylesheet" href="style.css?v=20261027-results-layout">
 </head>
 <body>
 <!-- line icons, drawn like the ones in the loop -->
@@ -135,7 +135,7 @@
 <section class="chapter" id="examples">
   <header class="wrap intro">
     <h2 class="sec">Gameplay Trajectory Example</h2>
-    <div class="prose">
+    <div class="method-summary">
       <p>The three gameplay trajectories below were collected by code policies developed by the Coding Player. Each follows a task defined by the Builder, with start conditions, progress, and success checks grounded in game state.</p>
       <p>Each trajectory pairs <span class="em">observations and actions</span> with <span class="em">verifiable task progress</span>. Progress is computed from game state at each step, providing task feedback for environment validation and visual policy distillation.</p>
     </div>
@@ -176,7 +176,7 @@
 <section class="chapter" id="players">
   <header class="wrap intro">
     <h2 class="sec">Comparing Coding Player and VLM Player</h2>
-    <div class="prose">
+    <div class="method-summary">
       <p>The <span class="sname" data-k="policy"></span> develops Python code policies that read the game state exposed by the Builder and execute actions in real time. Once written, these policies support fast, repeated rollouts for task validation and scalable trajectory collection.</p>
       <p>The <span class="sname" data-k="vlm"></span> observes screenshots, reasons about the task, and selects actions without access to internal game state. The game pauses during model inference. VLM Players acting as teachers provide visual demonstrations for policy distillation; both player types return feedback to the Builder.</p>
       <p class="hint">Scroll or select a player to compare its observations, decisions, and actions.</p>
@@ -241,18 +241,18 @@
 <section class="chapter flow" id="results">
   <header class="wrap intro">
     <h2 class="sec">Results</h2>
-    <p class="lead">We evaluate task correctness, player performance, and visual policy distillation. Results are pending; <span class="tbd">xxx</span> marks values to be filled in.</p>
+    <div class="method-summary"><p>Results coming soon.</p></div>
   </header>
   <div class="wrap">
     <div class="block" id="pipeline">
-      <div class="block-head"><h3>Environment and task quality</h3><span class="soon-tag">Placeholder</span></div>
+      <div class="block-head"><h3>Environment and task quality</h3></div>
       <p class="note">We freeze the pipeline and run it on <span class="tbd">xxx</span> new web games chosen by a rule fixed in advance.</p>
       <figure class="half"><svg class="skel" data-kind="bars" data-cats="Full loop|Builder alone|Coding agent alone" data-axis="Correct tasks (%)"></svg></figure>
       <p class="fig-cap">Human-verified task correctness for the full co-development loop, the Builder without player feedback, and a standalone coding agent, using the same games and budget.</p>
     </div>
 
     <div class="block" id="leaderboard">
-      <div class="block-head"><h3>Leaderboard</h3><span class="soon-tag">Placeholder</span></div>
+      <div class="block-head"><h3>Leaderboard</h3></div>
       <p class="note">Every player gets the same harness, step budget and seeds.</p>
       <div class="tabs lb-tabs" id="lb-tabs"><button class="on" data-v="all">All tasks</button><button data-v="held">PlayerBench</button></div>
       <div class="lb" id="lb"></div>
@@ -260,7 +260,7 @@
     </div>
 
     <div class="block" id="training">
-      <div class="block-head"><h3>Visual policy distillation</h3><span class="soon-tag">Placeholder</span></div>
+      <div class="block-head"><h3>Visual policy distillation</h3></div>
       <p class="note">We evaluate a 4B VLM agent distilled from collected gameplay on GameWorld and the held-out PlayerBench.</p>
       <figure class="half"><svg class="skel" data-kind="groups" data-cats="GameWorld|PlayerBench" data-series="Base|Trained" data-axis="Progress (%)"></svg></figure>
       <p class="fig-cap">Compare the base 4B VLM with the distilled visual agent on GameWorld and PlayerBench. PlayerBench spans 50 held-out games and over 200 tasks.</p>
@@ -282,7 +282,7 @@
 </section>
 <section class="chapter flow" id="license" aria-labelledby="license-heading">
   <header class="wrap intro"><h2 class="sec" id="license-heading">License &amp; Availability</h2></header>
-  <div class="wrap"><div class="prose">
+  <div class="wrap"><div class="method-summary">
     <p>We plan to release the Game2Player code and trained models. Their licenses will be specified in the respective repositories. Gameplay data release remains under review pending copyright and redistribution considerations. We do not distribute instrumented game environments due to third-party licensing and permission constraints. All third-party games and assets remain subject to their respective owners’ rights and licenses.</p>
   </div></div>
 </section>
