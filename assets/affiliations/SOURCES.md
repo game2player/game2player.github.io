@@ -6,3 +6,5 @@
 - IBM: official inline masthead logo at https://www.ibm.com/ (original computed fill preserved).
 
 Marks retain their original proportions and colors. Used to identify author affiliations.
+
+- Northwestern University: https://common.northwestern.edu/v9/css/images/northwestern.svg (official homepage wordmark; transparent SVG with original purple fill).
