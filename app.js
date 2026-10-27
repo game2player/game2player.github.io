@@ -1457,10 +1457,10 @@ function initResults(R) {
   const SUITES = [["PlayerBench", "#main-pb"], ["GameWorld", "#main-gw"]];
   let metric = "progress";
   // Base and trained side by side for each model; both panels share one scale.
-  function bars() {
+  function bars(h) {
     const top = niceTop(Math.max(...R.main.flatMap(g => SUITES.map(([s]) => g.ours[s][metric]))));
     SUITES.forEach(([suite, sel]) => {
-      const svg = $(sel), w = svg.clientWidth, h = 280, L = 34, T = 46, B = 30, ph = h - T - B, base = T + ph;
+      const svg = $(sel), w = svg.clientWidth, L = 34, T = 46, B = 30, ph = h - T - B, base = T + ph;
       const y = v => base - v / top * ph, slot = (w - L) / R.main.length, bw = Math.min(46, slot * .3);
       let out = svgText(0, 18, suite, "title");
       for (let v = 0; v <= top; v += 10) out += `<line x1="${L}" x2="${w}" y1="${y(v)}" y2="${y(v)}" class="grid"/>` + svgText(L - 8, y(v) + 4, v, "tick", "end");
@@ -1477,9 +1477,9 @@ function initResults(R) {
   }
   // The 9B checkpoints: progress on both sets of games against training steps.
   function steps() {
-    // as tall as the table beside it, so the two end on one line
+    // as tall as the table beside it, so the two end on one line; the bar charts above take the same height
     const svg = $("#steps"), table = $("#ablation table");
-    const h = Math.max(200, table.getBoundingClientRect().bottom - svg.getBoundingClientRect().top);
+    const h = clamp(table.getBoundingClientRect().bottom - svg.getBoundingClientRect().top, 260, 360);
     const w = svg.clientWidth, L = 34, R_ = 28, T = 16, B = 26, ph = h - T - B, base = T + ph;
     const pts = R.steps, last = pts[pts.length - 1].step, top = niceTop(Math.max(...pts.flatMap(p => [p.PlayerBench.progress, p.GameWorld.progress])));
     const x = s => L + 12 + s / last * (w - L - R_ - 12), y = v => base - v / top * ph;
@@ -1492,6 +1492,7 @@ function initResults(R) {
       xy.forEach(([a, b, v]) => out += `<circle cx="${a}" cy="${b}" r="3.5" class="dot ${cls}"/>` + svgText(a, b - 9, v.toFixed(1), "v " + cls, "middle"));
     });
     svg.setAttribute("height", h); svg.innerHTML = out;
+    return h;
   }
   // The training data ablation: best value of each model size in bold.
   function ablation() {
@@ -1509,9 +1510,9 @@ function initResults(R) {
   }
   $("#main-metric").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    metric = b.dataset.k; document.querySelectorAll("#main-metric button").forEach(x => x.classList.toggle("on", x === b)); bars();
+    metric = b.dataset.k; document.querySelectorAll("#main-metric button").forEach(x => x.classList.toggle("on", x === b)); bars(+$("#steps").getAttribute("height"));
   });
-  const draw = () => { bars(); steps(); };
+  const draw = () => bars(steps());
   ablation(); draw();
   addEventListener("resize", draw); document.fonts && document.fonts.ready.then(draw);
   initCompare(R.compare);

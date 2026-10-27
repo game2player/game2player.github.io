@@ -594,8 +594,7 @@ h2.sec, .contrib h4 { text-wrap: balance; }
 }
 
 /* Results follows the same text measure and rhythm as the method sections. */
-#results .block { max-width: 1080px; margin-top: 32px; }
-#results #compare { max-width: none; }   /* a figure, not running text: it keeps the full width */
+#results .block { margin-top: 32px; }   /* figures span the page; the text in them keeps its own measure */
 #results .block + .block { padding-top: 28px; border-top: 1px solid var(--rule); }
 #results .block-head { justify-content: flex-start; gap: 12px; flex-wrap: wrap; }
 #results .block h3 { font-weight: 600; line-height: 1.3; text-wrap: balance; }
@@ -603,3 +602,4 @@ h2.sec, .contrib h4 { text-wrap: balance; }
 #results .fig-cap { max-width: 1080px; margin-top: 12px; }
 #results .tbl { font-size: 15px; line-height: 1.5; }
 #results .tbl th, #results .tbl td { padding-top: 10px; padding-bottom: 10px; }
+#results .tbl.abl th, #results .tbl.abl td { padding-top: 9px; padding-bottom: 9px; }   /* level with the chart beside it */
