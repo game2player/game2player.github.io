@@ -101,8 +101,10 @@
   </header>
   <div class="pin" style="--hold: 55vh">
     <div class="pin-stage"><div class="wrap">
-      <div class="cycle-box" id="cycle-box">
+      <p class="compact-hint">Tap a stage to explore it. Reports return to the Builder for repair; play is saved as Data.</p>
+      <div class="cycle-box" id="cycle-box" role="region" aria-label="Agent loop diagram">
         <div class="cycle" id="cycle">
+          <svg class="mobile-flow" id="mobile-flow" aria-hidden="true"></svg>
           <canvas id="cycle-fx"></canvas>
           <div class="logos" id="logos"></div>
           <button class="node" data-k="scout"></button>
@@ -165,7 +167,7 @@
     <div class="prose">
       <p>Every task is played by two kinds of player. The <span class="sname" data-k="policy"></span> is a coding agent that studies the game and writes a policy in Python. The policy reads the state the Builder exposes and plays in real time, so a task can be played quickly and many times.</p>
       <p>The <span class="sname" data-k="vlm"></span> plays from screenshots alone. It looks at the screen, reasons and presses keys, and the game pauses while it thinks. A slow model is therefore judged on its decisions rather than its speed. It shows whether a task can be understood and played from what is on the screen.</p>
-      <p class="hint">Scroll on to turn from one player to the other, or click a name.</p>
+      <p class="hint"><span class="desktop-hint">Scroll on to turn from one player to the other, or click a name.</span><span class="compact-hint">Tap a player tab below to switch between the Coding Player and VLM Player.</span></p>
     </div>
   </header>
   <div class="pin" id="pv-pin" style="--hold: 150vh">

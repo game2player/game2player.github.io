@@ -20,6 +20,7 @@ const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const fmt = n => n.toLocaleString("en-US");
 const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const compactLayout = matchMedia("(max-width: 900px)");
 const sources = mp4 => `<source src="${mp4}" type="video/mp4"><source src="${mp4.replace(/\.mp4$/, ".webm")}" type="video/webm">`;
 function setVideo(video, mp4) { video.removeAttribute("src"); video.innerHTML = sources(mp4); video.load(); }
 
@@ -39,10 +40,13 @@ Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "as
     initLoop(stories, tiles);
     initExamples(data.replays);
     initPlayers(policies);
+    document.querySelectorAll(".transport button").forEach(b => b.setAttribute("aria-label", "Play or pause recording"));
   });
 
 /* ============ the bar along the top ============ */
 function navH() { return $("#topnav").offsetHeight; }
+// A taller game wall uses normal page scrolling after its opening transition.
+function introTravel(intro) { return Math.max(1, intro.offsetHeight - intro.querySelector(".stage").offsetHeight); }
 // How far the page has scrolled through a pinned chapter's hold, from 0 to 1.
 function progressIn(pin) {
   const span = pin.offsetHeight - pin.firstElementChild.offsetHeight;
@@ -55,14 +59,14 @@ function initNav() {
   const IDS = ["abstract", "contributions", "loop", "examples", "players", "results", "release", "cite"];
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
-  const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + (intro.offsetHeight - innerHeight) * .72 : topOf(document.getElementById(id)) - 24;
+  const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + introTravel(intro) * .72 : topOf(document.getElementById(id)) - 24;
   document.addEventListener("click", e => {
     const a = e.target.closest("a[data-go], a.soon"); if (!a) return;
     e.preventDefault();
     if (a.dataset.go) scrollTo({ top: target(a.dataset.go), behavior: "smooth" });
   });
   function onScroll() {
-    const p = clamp(scrollY / Math.max(1, intro.offsetHeight - innerHeight), 0, 1);
+    const p = clamp(scrollY / introTravel(intro), 0, 1);
     document.body.classList.toggle("nav-on", p > .25);
     let cur = p > .5 ? "games" : null;
     IDS.forEach(id => { if (document.getElementById(id).getBoundingClientRect().top <= navH() + innerHeight * .3) cur = id; });
@@ -132,26 +136,44 @@ function initIntro(T) {
     const box = $(".wrap", head).getBoundingClientRect(), top = head.offsetHeight + 22, left = box.left, width = box.width, height = H - top - 20;
     const buckets = {}; games.forEach(g => (buckets[g[key]] = buckets[g[key]] || []).push(g.i));
     const names = Object.keys(buckets).sort((a, b) => buckets[b].length - buckets[a].length);
-    for (let tw = 64; tw >= 12; tw--) {
+    const minimum = 32;
+    for (let tw = 64; tw >= minimum; tw--) {
       const th = tw * 9 / 16, gap = 3, labelH = 22, pos = [], labels = [];
       let x = 0, y = 0, rowH = 0, ok = true;
       for (const name of names) {
-        const n = buckets[name].length, cols = Math.max(3, Math.ceil(Math.sqrt(n * 2.4)));
-        const bw = cols * (tw + gap), bh = labelH + Math.ceil(n / cols) * (th + gap);
+        const n = buckets[name].length, cols = Math.max(1, Math.min(Math.ceil(Math.sqrt(n * 2.4)), Math.floor((width + gap) / (tw + gap))));
+        ctx.font = "600 14px 'Libre Franklin', sans-serif";
+        const labelW = ctx.measureText(name).width + 28;
+        ctx.font = "12px 'Libre Franklin', sans-serif";
+        const bw = Math.max(cols * (tw + gap), labelW + ctx.measureText(String(n)).width), bh = labelH + Math.ceil(n / cols) * (th + gap);
         if (x + bw > width) { x = 0; y += rowH + 14; rowH = 0; }
-        if (y + bh > height) { ok = false; break; }
+        if (y + bh > height && tw > minimum) { ok = false; break; }
         labels.push({ x: left + x, y: top + y + 14, name, n, color: (key === "engine" ? ENGINE : GENRE)[name] || INK3 });
         buckets[name].forEach((gi, k) => pos[gi] = { x: left + x + (k % cols) * (tw + gap), y: top + y + labelH + Math.floor(k / cols) * (th + gap), w: tw });
         x += bw + 30; rowH = Math.max(rowH, bh);
       }
-      if (ok) return { pos, labels };
+      if (ok) {
+        return { pos, labels, height: top + y + rowH + 20 };
+      }
     }
   }
   function resize() {
-    W = canvas.clientWidth; H = canvas.clientHeight;
-    const dpr = window.devicePixelRatio || 1; canvas.width = W * dpr; canvas.height = H * dpr;
+    const stage = intro.querySelector(".stage");
+    stage.style.height = ""; intro.style.height = "";
+    W = canvas.clientWidth; H = stage.clientHeight;
+    const viewportH = H, dpr = window.devicePixelRatio || 1;
     ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = "high";
-    wall = layoutWall(); groups = { genre: layoutGroups("genre"), engine: layoutGroups("engine") };
+    groups = { genre: layoutGroups("genre"), engine: layoutGroups("engine") };
+    H = Math.ceil(Math.max(viewportH, groups.genre.height, groups.engine.height));
+    if (H > viewportH) {
+      stage.style.height = H + "px";
+      intro.style.height = H + viewportH * (compactLayout.matches ? 1.3 : 2.3) + "px";
+    }
+    band.style.top = viewportH / 2 + "px";
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = "high";
+    wall = layoutWall();
+    onScroll();
   }
   const wrap = (v, span) => ((v % span) + span) % span;
   let running = false;
@@ -235,9 +257,11 @@ function initIntro(T) {
   // From the tile's own place to a 320px preview over it, kept inside the screen.
   const BIG = 320;
   function zoomRect(g) {
-    const c = g.cur, z = clamp(g.zoom, 0, 1), bh = BIG * 9 / 16;
-    const bx = clamp(c.x + c.w / 2 - BIG / 2, 8, W - BIG - 8), by = clamp(c.y + c.h / 2 - bh / 2, 8, H - bh - 64);
-    return { x: c.x + (bx - c.x) * z, y: c.y + (by - c.y) * z, w: c.w + (BIG - c.w) * z, z };
+    const c = g.cur, z = clamp(g.zoom, 0, 1), big = Math.min(BIG, W - 16), bh = big * 9 / 16;
+    const stageTop = canvas.getBoundingClientRect().top;
+    const top = Math.max(8, navH() - stageTop + 8), bottom = Math.min(H, innerHeight - stageTop);
+    const bx = clamp(c.x + c.w / 2 - big / 2, 8, W - big - 8), by = clamp(c.y + c.h / 2 - bh / 2, top, bottom - bh - 64);
+    return { x: c.x + (bx - c.x) * z, y: c.y + (by - c.y) * z, w: c.w + (big - c.w) * z, z };
   }
   function tile(gi, x, y, w) {
     const h = w * 9 / 16;
@@ -245,7 +269,7 @@ function initIntro(T) {
     ctx.drawImage(copy, (gi % COLS) * TW, Math.floor(gi / COLS) * TH, TW, TH, x, y, w, h);
   }
   function onScroll() {
-    const span = intro.offsetHeight - innerHeight;
+    const span = introTravel(intro);
     p = clamp(-intro.getBoundingClientRect().top / span, 0, 1);
     const f = clamp((p - .1) / .15, 0, 1);
     band.style.opacity = 1 - f; band.style.transform = `translate(-50%, calc(-50% - ${f * 40}px))`;
@@ -261,6 +285,7 @@ function initIntro(T) {
     const b = e.target.closest("button"); if (!b || b.dataset.g === group) return;
     document.querySelectorAll("#group-seg button").forEach(x => x.classList.toggle("on", x === b));
     switching = { from: group, t: 0 }; group = b.dataset.g;
+    onScroll();
   });
   canvas.addEventListener("mousemove", e => {
     if (p < .6) return;
@@ -287,6 +312,7 @@ function initIntro(T) {
     else if (!e.isIntersecting) { running = false; video.pause(); }
   }).observe(intro);
   resize(); onScroll();
+  document.fonts && document.fonts.ready.then(resize);
 }
 
 /* ============ the loop ============ */
@@ -456,7 +482,7 @@ function initLoop(S, T) {
   let cur = null, t0 = 0, held = 0, still = 0, video = null, steps = [], round = -1, lastHit = "";
   function show(k) {
     cur = k; t0 = performance.now(); texts.length = 0; round = -1;
-    cycle.querySelectorAll(".node").forEach(n => n.classList.toggle("on", n.dataset.k === k));
+    cycle.querySelectorAll(".node").forEach(n => { n.classList.toggle("on", n.dataset.k === k); n.setAttribute("aria-pressed", String(n.dataset.k === k)); });
     if (video) video.pause();
     const st = STORY[k];
     steps = st.steps();
@@ -464,7 +490,7 @@ function initLoop(S, T) {
     panel.innerHTML = `<div class="lp-head"><span class="ic"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span><h3>${NAME[k]}</h3><p>${rich(st.what)}</p></div>
       <div class="board">
         <ol class="rail">${steps.map(([title], i) => `<li><b>${i + 1}</b><span>${esc(title)}</span>${i < 2 ? "<i></i>" : ""}</li>`).join("")}</ol>
-        <div class="cards">${steps.map(([, html, , cls]) => `<div class="card ${cls || ""}">${html}</div>`).join("")}</div>
+        <div class="cards">${steps.map(([title, html, , cls], i) => `<div class="step-group"><h4 class="mobile-step-title"><b>${i + 1}</b>${esc(title)}</h4><div class="card ${cls || ""}">${html}</div></div>`).join("")}</div>
       </div>`;
     panel.querySelectorAll(".typed").forEach(el => el.dataset.text = texts[+el.dataset.i]);
     video = panel.querySelector("video");
@@ -525,10 +551,10 @@ function initLoop(S, T) {
       li.classList.toggle("on", i <= lit); li.classList.toggle("now", i === lit);
       li.classList.toggle("done", i + 1 < steps.length && u >= steps[i + 1][2]);
     });
-    panel.querySelectorAll(".card").forEach((cd, i) => { cd.classList.toggle("in", u >= steps[i][2]); cd.classList.toggle("now", i === lit); });
-    panel.querySelectorAll(".card [data-at]").forEach(el => el.classList.toggle("in", u >= +el.dataset.at));
+    panel.querySelectorAll(".card").forEach((cd, i) => { cd.classList.toggle("in", compactLayout.matches || u >= steps[i][2]); cd.classList.toggle("now", i === lit); });
+    panel.querySelectorAll(".card [data-at]").forEach(el => el.classList.toggle("in", compactLayout.matches || u >= +el.dataset.at));
     panel.querySelectorAll(".typed").forEach(el => {
-      const f = clamp((u - +el.dataset.at) / +el.dataset.dur, 0, 1), txt = el.dataset.text || "", n = Math.ceil(txt.length * f);
+      const f = compactLayout.matches ? 1 : clamp((u - +el.dataset.at) / +el.dataset.dur, 0, 1), txt = el.dataset.text || "", n = Math.ceil(txt.length * f);
       if (+el.dataset.n !== n) { el.dataset.n = n; el.innerHTML = rich(txt, n); }
     });
     const flip = panel.querySelector(".flip");
@@ -547,7 +573,7 @@ function initLoop(S, T) {
     }
     const seen = panel.querySelector(".seen");
     if (seen) seen.classList.toggle("thinking", u < steps[2][2]);
-    if (t > st.dur && performance.now() > held && running) show(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
+    if (!compactLayout.matches && t > st.dur && performance.now() > held && running) show(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]);
   }
 
   // ---------- the drawing
@@ -565,6 +591,31 @@ function initLoop(S, T) {
   const LIB = { cols: 2, rows: 4, cw: 60, ch: 34, gap: 6, pad: 9 };
   LIB.w = LIB.cols * (LIB.cw + LIB.gap) - LIB.gap + 2 * LIB.pad; LIB.h = LIB.rows * (LIB.ch + LIB.gap) - LIB.gap + 2 * LIB.pad; LIB.step = LIB.ch + LIB.gap;
   const HEAP_W = LIB.w;
+  function mobileFlow() {
+    const svg = $("#mobile-flow");
+    if (!compactLayout.matches) return;
+    const bounds = cycle.getBoundingClientRect();
+    const box = el => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left - bounds.left, y: r.top - bounds.top, w: r.width, h: r.height, cx: r.left - bounds.left + r.width / 2 };
+    };
+    const [scout, builder, env, policy, vlm, reports, data] = ["scout", "builder", "env", "policy", "vlm", "reports", "data"].map(k => box(node(k)));
+    svg.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`);
+    const path = (d, tone, arrow = true) => `<path d="${d}" class="flow-${tone}"${arrow ? ` marker-end="url(#flow-arrow-${tone})"` : ""}/>`;
+    const down = (a, b, tone) => path(`M${a.cx},${a.y + a.h}V${b.y - 3}`, tone);
+    const split = env.y + env.h + 14;
+    const merge = policy.y + policy.h + 20;
+    svg.innerHTML = `<defs>${["game", "player", "turn"].map(tone => `<marker id="flow-arrow-${tone}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="arrow-${tone}" d="M0 0L8 4L0 8Z"/></marker>`).join("")}</defs>`
+      + down(scout, builder, "game") + down(builder, env, "game")
+      + path(`M${env.cx},${env.y + env.h}V${split}`, "game", false)
+      + [policy, vlm].map(p => path(`M${env.cx},${split}H${p.cx}V${p.y - 3}`, "game")).join("")
+      + [policy, vlm].map(p => path(`M${p.cx},${p.y + p.h}V${merge}`, "player", false)).join("")
+      + path(`M${Math.min(policy.cx, reports.cx)},${merge}H${Math.max(vlm.cx, data.cx)}`, "player", false)
+      + path(`M${reports.cx},${merge}V${reports.y - 3}`, "turn")
+      + path(`M${data.cx},${merge}V${data.y - 3}`, "player")
+      + path(`M${reports.x},${reports.y + reports.h / 2}H7V${builder.y + builder.h / 2}H${builder.x - 3}`, "turn")
+      + `<text class="repair-label" transform="translate(17 ${(builder.y + reports.y) / 2}) rotate(-90)" text-anchor="middle">repair</text>`;
+  }
   function layout() {
     const box = $("#cycle-box"), stage = cycle.closest(".pin-stage");
     // the single stages share one size (set in the stylesheet); the players' frame is larger
@@ -573,11 +624,11 @@ function initLoop(S, T) {
     // the board is as wide as its wider side needs, twice, so the ring stays in the middle
     DW = Math.round(2 * (R + Math.max(nw, gw) + GAP + 2 * nw + SIDE + HEAP_W) + 12);
     const availW = box.offsetWidth, availH = stage.clientHeight - offsetIn(box, stage) - panel.offsetHeight - 18 - 26;
-    const k = clamp(Math.min(availW / DW, availH / DH), .55, 1.12);
-    cycle.style.width = DW + "px"; cycle.style.height = DH + "px"; cycle.style.transform = `translateX(-50%) scale(${k})`;
+    const k = compactLayout.matches ? 1 : clamp(Math.min(availW / DW, availH / DH), .55, 1.12);
+    cycle.style.width = DW + "px"; cycle.style.height = DH + "px"; cycle.style.transform = compactLayout.matches ? "none" : `translateX(-50%) scale(${k})`;
     box.style.height = Math.round(DH * k) + "px";
     // on tall screens the drawing and its panel sit in the middle of the room under the title
-    box.style.marginTop = Math.max(0, Math.round((availH - DH * k) / 2)) + "px";
+    box.style.marginTop = compactLayout.matches ? "0px" : Math.max(0, Math.round((availH - DH * k) / 2)) + "px";
     const dpr = (devicePixelRatio || 1) * k;
     canvas.width = Math.round(DW * dpr); canvas.height = Math.round(DH * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const cx = DW / 2, cy = DH / 2;
@@ -606,6 +657,7 @@ function initLoop(S, T) {
     const line = (x0, x1) => Array.from({ length: 40 }, (_, i) => [x0 + (x1 - x0) * i / 39, cy]);
     const arc = (a0, a1) => Array.from({ length: 160 }, (_, i) => { const a = (a0 + (a1 - a0) * i / 159) * Math.PI / 180; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
     G.paths = { feed: line(sx, cx - R), top: arc(180, 360), back: arc(0, 180), out: line(cx + R, dx), ring: arc(180, 540) };
+    mobileFlow();
   }
   // rows are numbered for good (`base` is the number of the top one kept), so a game flying
   // to its slot keeps its target while the rows slide under it
@@ -708,6 +760,11 @@ function initLoop(S, T) {
   let running = false, last = 0, clock = 0, spawnIn = 0;
   function frame(now) {
     if (!running) return;
+    // The mobile stage picker has no animated diagram to draw.
+    if (compactLayout.matches) {
+      if (now - last >= 100) { last = now; tick(now); }
+      requestAnimationFrame(frame); return;
+    }
     const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
     ctx.clearRect(0, 0, G.W, G.H);
     G.arcs.forEach(([a0, a1, tone]) => arcArrow(a0, a1, tone));
@@ -738,9 +795,14 @@ function initLoop(S, T) {
     requestAnimationFrame(frame);
   }
   new IntersectionObserver(([e]) => {
-    if (e.isIntersecting && !running) { running = true; last = performance.now(); if (!cur) show("scout"); requestAnimationFrame(frame); }
+    if (e.isIntersecting && !running) {
+      running = true; last = performance.now();
+      if (!cur) show("scout");
+      else if (video) video.play().catch(() => {});
+      requestAnimationFrame(frame);
+    }
     else if (!e.isIntersecting) { running = false; if (video) video.pause(); }
-  }).observe(cycle);
+  }).observe(cycle.closest(".pin"));
   addEventListener("resize", () => { layout(); });
   layout();
   document.fonts && document.fonts.ready.then(layout);
@@ -828,6 +890,10 @@ function pointerLayer(cursor, ripple) {
 // height allows, the right column takes the rest and matches the left column's height.
 const offsetIn = (el, anc) => { let y = 0; while (el && el !== anc) { y += el.offsetTop; el = el.offsetParent; } return y; };
 function fitBench(bench, left, extra) {
+  if (compactLayout.matches) {
+    bench.style.gridTemplateColumns = "minmax(0, 1fr)";
+    return left.clientWidth;
+  }
   const stage = bench.closest(".pin-stage"), top = stage ? offsetIn(bench, stage) : 156;
   const cap = stage && stage.querySelector(".fig-cap"), below = cap ? cap.offsetHeight + 12 : 0;   // its caption stays on screen too
   const wrapW = bench.parentElement.clientWidth, avail = (stage ? stage.clientHeight : innerHeight) - top - 24 - below;
@@ -887,7 +953,7 @@ function initExamples(list) {
     pointer(cur.pointer, cur.buttons, t);
     drawScrub($("#ex-scrub-c"), cur.progress, t, dur);
     const leftH = $("#ex-left").offsetHeight, used = $("#ex-task-box").offsetHeight + 14 + $(".read", $("#ex-right")).offsetHeight + 12 + $(".charts .label").offsetHeight + 6;
-    charts(t, dur, Math.max(220, leftH - used));
+    charts(t, dur, Math.max(compactLayout.matches ? 320 : 220, leftH - used));
   }
   // One canvas: every row has the same label height, plot height and width.
   function charts(t, dur, height) {
@@ -1247,7 +1313,7 @@ function initVLM(index, active) {
 // and stopping half way finishes it towards the nearer player. The names in the header scroll
 // the page to their player.
 function initPlayers(index) {
-  let face = 0, f = 0;
+  let face = 0, f = 0, selectedFace = 0;
   const coding = initCoding(index, () => face === 0), vlm = initVLM(index, () => face === 1);
   const pin = $("#pv-pin"), track = $("#track"), faces = [$("#face-code"), $("#face-vlm")];
   const names = [...document.querySelectorAll("#who button")], bar = $("#who-bar");
@@ -1259,23 +1325,31 @@ function initPlayers(index) {
   }
   $("#pv-tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) open(+b.dataset.i); });
   function slide() {
-    const x = clamp((progressIn(pin) - A) / (B - A), 0, 1);
+    const x = compactLayout.matches ? selectedFace : clamp((progressIn(pin) - A) / (B - A), 0, 1);
     f = x * x * (3 - 2 * x);
     track.style.transform = `translateX(${(-f * 100).toFixed(3)}%)`;
     faces[0].style.opacity = 1 - .75 * f; faces[1].style.opacity = .25 + .75 * f;
     const [a, b] = names.map(n => [n.offsetLeft, n.offsetWidth]);
     bar.style.left = a[0] + (b[0] - a[0]) * f + "px"; bar.style.width = a[1] + (b[1] - a[1]) * f + "px";
     const now = f < .5 ? 0 : 1;
+    names.forEach((n, i) => n.setAttribute("aria-pressed", String(i === now)));
+    faces.forEach((el, i) => { el.inert = i !== now; });
     if (now !== face) { face = now; names.forEach((n, i) => n.classList.toggle("on", i === face)); coding.sync(); vlm.sync(); }
   }
   const at = q => topOf(pin) + q * (pin.offsetHeight - pin.firstElementChild.offsetHeight);
   let idle = 0;
   addEventListener("scroll", () => {
     slide(); clearTimeout(idle);
-    idle = setTimeout(() => { if (f > 0 && f < 1) scrollTo({ top: at(f < .5 ? A - .03 : B + .03), behavior: "smooth" }); }, 180);
+    if (!compactLayout.matches) idle = setTimeout(() => { if (f > 0 && f < 1) scrollTo({ top: at(f < .5 ? A - .03 : B + .03), behavior: "smooth" }); }, 180);
   }, { passive: true });
-  $("#who").addEventListener("click", e => { const b = e.target.closest("button"); if (b) scrollTo({ top: at(+b.dataset.face ? .8 : .2), behavior: "smooth" }); });
-  document.querySelectorAll("#players .sname").forEach(m => m.addEventListener("click", () => scrollTo({ top: at(m.dataset.k === "vlm" ? .8 : .2), behavior: "smooth" })));
+  function selectPlayer(i, fromIntro = false) {
+    if (compactLayout.matches) {
+      selectedFace = i; slide();
+      if (fromIntro) scrollTo({ top: topOf(pin), behavior: "smooth" });
+    } else scrollTo({ top: at(i ? .8 : .2), behavior: "smooth" });
+  }
+  $("#who").addEventListener("click", e => { const b = e.target.closest("button"); if (b) selectPlayer(+b.dataset.face); });
+  document.querySelectorAll("#players .sname").forEach(m => m.addEventListener("click", () => selectPlayer(m.dataset.k === "vlm" ? 1 : 0, true)));
   addEventListener("resize", slide);
   slide();
   near($("#players"), () => open(0));   // the first traces are ~1 MB each: fetch them on approach
@@ -1288,14 +1362,15 @@ function initResults() {
   // value will go. Bars stand on the baseline, so no height is implied.
   function skeleton(svg) {
     const d = svg.dataset, w = svg.clientWidth, h = svg.clientHeight, cats = d.cats.split("|"), series = d.series ? d.series.split("|") : [null];
-    const L = 34, T = 26, B = 28, pw = w - L, ph = h - T - B, base = T + ph;
+    const L = 34, T = 26, B = compactLayout.matches ? 64 : 28, pw = w - L, ph = h - T - B, base = T + ph;
     const COL = ["#9aa3ad", PLAYER];
     let out = `<text x="0" y="12" class="ax">${esc(d.axis)}</text>`;
     [0, 25, 50, 75, 100].forEach(v => { const y = base - v / 100 * ph; out += `<line x1="${L}" x2="${w}" y1="${y}" y2="${y}" class="grid"/><text x="${L - 8}" y="${y + 4}" class="tick" text-anchor="end">${v}</text>`; });
     const slot = pw / cats.length, bw = Math.min(64, (slot - 28) / series.length);
     cats.forEach((c, i) => {
       const mid = L + (i + .5) * slot;
-      out += `<text x="${mid}" y="${base + 18}" class="tick" text-anchor="middle">${esc(c)}</text>`;
+      const label = compactLayout.matches ? c.split(" ").map((word, j) => `<tspan x="${mid}" dy="${j ? 14 : 0}">${esc(word)}</tspan>`).join("") : esc(c);
+      out += `<text x="${mid}" y="${base + 18}" class="tick" text-anchor="middle">${label}</text>`;
       series.forEach((_, j) => {
         const x = mid + (j - (series.length - 1) / 2) * (bw + 8);
         out += `<line x1="${x - bw / 2}" x2="${x + bw / 2}" y1="${base}" y2="${base}" class="foot" stroke="${series.length > 1 ? COL[j] : "#9aa3ad"}"/><text x="${x}" y="${base - 10}" class="tbd" text-anchor="middle">xxx</text>`;
