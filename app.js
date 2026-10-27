@@ -1440,10 +1440,10 @@ function initBoard(rows) {
     sorted.forEach((r, i) => { if (!i || r[key] !== sorted[i - 1][key]) rank = i + 1; r.rank = rank; });
     const top = Math.max(...rows.map(r => r[key]));
     const cell = (r, k) => k === key
-      ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(1)}</b></div></td>`
-      : `<td class="n">${r[k].toFixed(1)}</td>`;
+      ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(2)}</b></div></td>`
+      : `<td class="n">${r[k].toFixed(2)}</td>`;
     $("#board-rows").innerHTML = sorted.map(r => `<tr${r.kind === "ours" ? ' class="ours"' : ""}><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
-      <td><b>${esc(r.name)}</b><span class="effort">thinking: ${r.thinking}</span></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
+      <td><b>${esc(r.name)}</b>${r.thinking ? `<span class="effort">thinking: ${esc(r.thinking)}</span>` : ""}</td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
     document.querySelectorAll(".lb th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
   }
   document.querySelectorAll(".lb th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
