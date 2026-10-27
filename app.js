@@ -1438,7 +1438,8 @@ function initPlayers(index) {
 function initBoard(boards) {
   const cards = [...document.querySelectorAll(".lb[data-suite]")];
   cards.forEach(card => {
-    const rows = boards[card.dataset.suite];
+    // PlayerBench shows two decimals; GameWorld's published numbers have one
+    const rows = boards[card.dataset.suite], digits = card.dataset.suite === "GameWorld" ? 1 : 2;
     let key = "progress";
     function render() {
       const sorted = [...rows].sort((a, b) => b[key] - a[key] || b.progress - a.progress);
@@ -1446,8 +1447,8 @@ function initBoard(boards) {
       sorted.forEach((r, i) => { if (!i || r[key] !== sorted[i - 1][key]) rank = i + 1; r.rank = rank; });
       const top = Math.max(...rows.map(r => r[key]));
       const cell = (r, k) => k === key
-        ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(1)}</b></div></td>`
-        : `<td class="n">${r[k].toFixed(1)}</td>`;
+        ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(digits)}</b></div></td>`
+        : `<td class="n">${r[k].toFixed(digits)}</td>`;
       $("tbody", card).innerHTML = sorted.map(r => `<tr class="row-${r.kind}"><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
         <td><b>${esc(r.name)}</b><span class="effort">${esc(r.note)}</span></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
       card.querySelectorAll("th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
