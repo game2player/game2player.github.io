@@ -7,8 +7,8 @@
 <title>Game2Player: Scaling Gameplay Experience for Visual Agents through Environment–Player Co-Development</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261027-results2">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Libre+Franklin:wght@400;500;600;700&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=20261027-data">
 </head>
 <body>
 <!-- line icons, drawn like the ones in the loop -->
@@ -47,7 +47,7 @@
       <p class="sub">Scaling Gameplay Experience for Visual Agents through Environment–Player Co-Development</p>
       <p class="tldr">We co-develop verifiable game environments with the Coding Player and VLM Player, turning their gameplay into training data for visual agents.</p>
       <dl class="hero-stats" aria-label="Gameplay training data">
-        <div><dt>Games</dt><dd>550+</dd></div>
+        <div><dt>Games</dt><dd>568</dd></div>
         <div><dt>Trajectories</dt><dd>15.7K</dd></div>
         <div><dt>Steps</dt><dd>1.56M</dd></div>
         <div><dt>Hours of gameplay</dt><dd>307</dd></div>
@@ -78,11 +78,30 @@
   </div>
 </div>
 
+<section class="chapter" id="dataset">
+  <header class="wrap intro">
+    <h2 class="sec">Training Data</h2>
+    <div class="method-summary"><p>Game2Player-4B and Game2Player-9B are trained on 15,707 trajectories with 1,563,640 steps and 307 hours of play, from 396 games and 2,251 tasks. The Coding Player played 12,856 of them and the VLM Player 2,851.</p></div>
+  </header>
+  <div class="pin" style="--hold: 55vh">
+    <div class="pin-stage"><div class="wrap">
+      <div class="dash" id="dash">
+        <div class="dpanel"><h4>Genre</h4><div class="dbody" data-k="genre"></div></div>
+        <div class="dpanel"><h4>Engine</h4><div class="dbody" data-k="engine"></div></div>
+        <div class="dpanel"><h4>Players</h4><div class="dbody" data-k="players"></div></div>
+        <div class="dpanel"><h4>Task difficulty</h4><div class="dbody" data-k="difficulty"></div></div>
+        <div class="dpanel"><h4>Trajectory length</h4><div class="dbody" data-k="length"></div></div>
+        <div class="dpanel"><h4>Progress at the end of a trajectory</h4><div class="dbody" data-k="progress"></div></div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
 <section class="chapter flow" id="abstract">
   <header class="wrap intro"><h2 class="sec">Abstract</h2></header>
   <div class="wrap"><div class="prose">
     <p>Games provide diverse environments for training and evaluating visual agents on perception, planning, and control. Existing efforts often collect agent experience from a small set of games or rely on human gameplay data. <strong>More scalable methods are needed</strong> to collect interaction experience across diverse games, with well-defined tasks and verifiable outcomes, for developing visual agentic intelligence.</p>
-    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; the Coding Player and VLM Player attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 550+ games for data collection and construct <strong>PlayerBench</strong>, a held-out benchmark spanning 50 games and 287 tasks that presents greater challenges than GameWorld.</p>
+    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; the Coding Player and VLM Player attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 568 games for data collection and construct <strong>PlayerBench</strong>, a held-out benchmark spanning 50 games and 287 tasks that presents greater challenges than GameWorld.</p>
     <p>We use instrumented environments, code policies, and VLM Players acting as teachers to collect diverse game tasks and trajectories at scale for <strong>visual policy distillation</strong>. We train a 4B VLM agent with <strong>progress-weighted SFT</strong>, assigning greater weight to steps that advance task progress. The agent plays from pixels, achieving progress scores of 49.5 on GameWorld and 31.1 on <strong>PlayerBench</strong> with thinking on, up from 26.9 and 15.9 for the base model.</p>
   </div></div>
 </section>
@@ -101,12 +120,13 @@
   </div>
 </section>
 
-<section class="chapter flow" id="leaderboard">
+<section class="chapter" id="leaderboard">
   <header class="wrap intro">
     <h2 class="sec">Leaderboard</h2>
     <div class="method-summary"><p>PlayerBench has 50 games and 287 tasks held out from training. Each model plays every task once, with at most 100 steps. On GameWorld, the other models' results are the ones published with that benchmark, under the same budget of 100 steps. Game2Player models play both benchmarks through our harness.</p></div>
   </header>
-  <div class="wrap">
+  <div class="pin" style="--hold: 55vh">
+    <div class="pin-stage"><div class="wrap">
     <div class="boards">
       <div class="lb" data-suite="PlayerBench"><h3>PlayerBench</h3><div class="lb-scroll">
         <table><thead><tr><th class="rk">#</th><th>Model</th><th class="sort" data-k="progress">Progress</th><th class="sort" data-k="success">Success</th></tr></thead><tbody></tbody></table>
@@ -115,6 +135,7 @@
         <table><thead><tr><th class="rk">#</th><th>Model</th><th class="sort" data-k="progress">Progress</th><th class="sort" data-k="success">Success</th></tr></thead><tbody></tbody></table>
       </div></div>
     </div>
+    </div></div>
   </div>
 </section>
 
@@ -260,12 +281,6 @@
     <div class="method-summary"><p>We fine-tune Qwen3.5-4B and Qwen3.5-9B on gameplay recorded by Game2Player and test them on PlayerBench, the 50 games held out from training, and on GameWorld, 34 games from another benchmark. Every model plays each task once with the same seed and at most 100 steps. Progress is averaged over a game's tasks and then over games, and success is the share of tasks completed. With thinking on, a model can write up to 32,768 tokens per step, and 512 with it off. The model trained only on Coding Player gameplay is prompted without the short note, as in its training data.</p></div>
   </header>
   <div class="wrap">
-    <div class="block" id="dataset">
-      <div class="block-head"><h3>Training data</h3></div>
-      <p class="note">Game2Player-4B and Game2Player-9B are trained on 15,707 trajectories with 1,563,640 steps and 307 hours of play, from 396 games and 2,251 tasks. The Coding Player played 12,856 of them and the VLM Player 2,851. Each chart counts trajectories.</p>
-      <div class="trio"><svg class="chart" id="ds-genre"></svg><svg class="chart" id="ds-difficulty"></svg><svg class="chart" id="ds-length"></svg></div>
-    </div>
-
     <div class="block" id="training">
       <div class="block-head"><h3>Training on Game2Player gameplay</h3><div class="seg" id="main-metric"><button data-k="progress" class="on">Progress</button><button data-k="success">Success</button></div></div>
       <div class="legend"><span><i class="sw base"></i>Qwen3.5 base</span><span><i class="sw ours"></i>Game2Player</span></div>
@@ -286,7 +301,7 @@
 
     <div class="block" id="compare">
       <div class="block-head"><h3>The same task before and after training</h3></div>
-      <p class="note">Qwen3.5-4B and Game2Player-4B play the same PlayerBench task with the same seed, both with thinking on. Each gets 100 steps. Qwen3.5-4B almost never says how long to hold a key: only 1% of its key presses carry a hold time. Game2Player-4B learned to, and sets one on 47% of them.</p>
+      <p class="note">Qwen3.5-4B and Game2Player-4B play the same PlayerBench task with the same seed, both with thinking on. Each gets 100 steps. In our harness a step can tap a key, hold keys for a chosen time, or chain a few timed key presses. Qwen3.5-4B almost never sets a hold time: only 1% of its key presses carry one. Game2Player-4B learned to, and sets one on 47% of them.</p>
       <div class="cmp" id="cmp">
         <div class="tabs" id="cmp-tabs"></div>
         <div class="cmp-grid">
@@ -323,6 +338,6 @@
   </div></div>
 </section>
 <footer class="wrap foot">Game2Player</footer>
-<script src="app.js?v=20261027-results3"></script>
+<script src="app.js?v=20261027-data"></script>
 </body>
 </html>

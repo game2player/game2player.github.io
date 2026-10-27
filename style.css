@@ -56,7 +56,7 @@ body.nav-on .topnav { transform: none; }
 @media (max-width: 1180px) { .topnav .acts { display: none; } }
 
 /* ---------- opening wall, then the games page ---------- */
-#intro { position: relative; height: 330vh; }
+#intro { position: relative; height: 390vh; }
 .stage { position: sticky; top: 0; height: 100vh; overflow: hidden; background: var(--bg); }
 #wall { position: absolute; inset: 0; width: 100%; height: 100%; }
 #wall.over { cursor: pointer; }
@@ -487,7 +487,11 @@ figure { margin: 18px 0 0; min-width: 0; }
 .lb td.n { text-align: right; color: var(--ink-2); }
 .lb td.n.on { color: var(--ink); }
 .lb td.n.on div { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
-.lb td.n.on b { min-width: 2.4em; text-align: right; }
+/* numbers in Public Sans, Libre Franklin's own descendant: as served, Libre Franklin has no digits
+   of one width, so columns of numbers would not line up */
+.lb td.n, .tbl.abl td.r { font-family: "Public Sans", var(--sans); font-variant-numeric: tabular-nums; }
+.lb td.n.on b { flex: none; width: 3.3em; text-align: right; }
+.lb .bar { flex: none; }
 .lb .bar { width: 130px; height: 8px; border-radius: 4px; background: #f0f2f5; overflow: hidden; }
 .lb .bar i { display: block; height: 100%; border-radius: 4px; background: #b8bfcb; }
 .lb tr.row-ours td { background: #f6f6fd; }
@@ -495,8 +499,21 @@ figure { margin: 18px 0 0; min-width: 0; }
 .lb tr.row-ours td:last-child { border-radius: 0 8px 8px 0; }
 .lb tr.row-ours .bar i { background: var(--player); }
 
-/* two leaderboards side by side; the longer one scrolls under its fixed header */
-.boards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; margin-top: 30px; }
+/* the training data: six panels in one pinned screen */
+.dash { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 18px 22px;
+  height: calc(100vh - var(--nav) - 22px - 30px); }
+.dpanel { display: flex; flex-direction: column; min-height: 0; padding: 14px 16px 12px; border: 1px solid var(--rule-2); border-radius: var(--radius); background: #fff; }
+.dpanel h4 { margin: 0 0 8px; font: 600 15.5px/1.3 var(--sans); color: var(--ink); }
+.dbody { position: relative; flex: 1; min-height: 0; }
+.dbody svg { position: absolute; inset: 0; }
+svg.chart .dtotal { font: 700 19px var(--sans); fill: var(--ink); }
+svg.chart .dval { font: 600 12.5px var(--sans); fill: var(--ink-2); }
+svg.chart .inbar { font: 600 12.5px var(--sans); fill: #fff; }
+svg.chart .num { font-variant-numeric: tabular-nums; }
+@media (max-width: 1000px) { .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 300px; height: auto; } }
+
+/* two leaderboards side by side, pinned like the examples; a long table scrolls under its fixed header */
+.boards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
 .boards .lb { max-width: none; margin: 0; }
 .boards .lb h3 { margin: 0; padding: 12px 16px 6px; font: 700 19px/1.3 var(--sans); letter-spacing: -.01em; }
 .boards .lb-scroll { overflow-y: auto; }

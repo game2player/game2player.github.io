@@ -47,7 +47,8 @@ Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "as
     initLoop(stories, tiles);
     initExamples(data.replays);
     initPlayers(policies);
-    initResults(results, dataset);
+    initDataset(dataset);
+    initResults(results);
   });
 
 /* ============ the bar along the top ============ */
@@ -61,7 +62,8 @@ function progressIn(pin) {
 function topOf(el) { return el.getBoundingClientRect().top + scrollY - navH(); }
 function initNav() {
   const intro = $("#intro"), links = [...document.querySelectorAll("#nav-links a")];
-  const IDS = ["abstract", "contributions", "leaderboard", "loop", "examples", "players", "results", "cite"];
+  const IDS = ["dataset", "abstract", "contributions", "leaderboard", "loop", "examples", "players", "results", "cite"];
+  const LINK = { dataset: "games" };   // chapters shown under another chapter's link
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
   const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + (intro.offsetHeight - innerHeight) * .72 : topOf(document.getElementById(id)) - 24;
@@ -74,7 +76,7 @@ function initNav() {
     const p = clamp(scrollY / Math.max(1, intro.offsetHeight - innerHeight), 0, 1);
     document.body.classList.toggle("nav-on", p > .25);
     let cur = p > .5 ? "games" : null;
-    IDS.forEach(id => { if (document.getElementById(id).getBoundingClientRect().top <= navH() + innerHeight * .3) cur = id; });
+    IDS.forEach(id => { if (document.getElementById(id).getBoundingClientRect().top <= navH() + innerHeight * .3) cur = LINK[id] || id; });
     if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = IDS[IDS.length - 1];
     links.forEach(a => a.classList.toggle("on", a.dataset.go === cur));
   }
@@ -1432,6 +1434,121 @@ function initPlayers(index) {
   near($("#players"), () => open(0));   // the first traces are ~1 MB each: fetch them on approach
 }
 
+/* ============ the training data ============ */
+// Six panels in one pinned screen: what the trajectories come from (genre, engine, player) and
+// what they look like (task difficulty, length, the progress they end with).
+const CODING = role("--player"), VLM = "#e39b2d";
+const PROGRESS = ["#dcefea", "#a3d8cb", "#55b7a4", role("--game")];
+function initDataset(D) {
+  const P = D.players, names = Object.keys(P), tone = { "Coding Player": CODING, "VLM Player": VLM };
+  const pct = (n, total) => (n / total * 100 < 1 ? (n / total * 100).toFixed(1) : Math.round(n / total * 100)) + "%";
+  const legend = (items, y = 12) => { let x = 0, out = ""; items.forEach(([name, color]) => { out += `<rect x="${x}" y="${y - 9}" width="10" height="10" rx="2" fill="${color}"/>` + svgText(x + 15, y, name, "tick"); x += 30 + name.length * 7.2; }); return out; };
+  function donut(w, h, items, colors) {
+    const total = items.reduce((t, [, n]) => t + n, 0), r = Math.min(h / 2 - 4, w * .23), ri = r * .62, cx = r + 4, cy = h / 2;
+    let a0 = -Math.PI / 2, out = "";
+    items.forEach(([name, n]) => {
+      const a1 = a0 + n / total * Math.PI * 2, big = a1 - a0 > Math.PI ? 1 : 0, p = (a, rr) => `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
+      out += `<path d="M${p(a0, r)} A${r},${r} 0 ${big} 1 ${p(a1, r)} L${p(a1, ri)} A${ri},${ri} 0 ${big} 0 ${p(a0, ri)} Z" fill="${colors[name] || INK3}" stroke="#fff" stroke-width="1.5"/>`;
+      a0 = a1;
+    });
+    out += svgText(cx, cy + 2, fmt(total), "dtotal", "middle") + svgText(cx, cy + 20, "trajectories", "tick", "middle");
+    const x0 = 2 * r + 26, row = Math.min(19, (h - 4) / items.length), y0 = (h - row * items.length) / 2 + row * .7;
+    items.forEach(([name, n], i) => {
+      const y = y0 + i * row;
+      out += `<rect x="${x0}" y="${y - 9}" width="10" height="10" rx="2" fill="${colors[name] || INK3}"/>` + svgText(x0 + 16, y, name, "tick")
+        + svgText(w, y, pct(n, total), "tick num", "end");
+    });
+    return out;
+  }
+  function players(w, h) {
+    const rows = [["Trajectories", "trajectories"], ["Steps", "steps"]], L = 92, bw = w - L, bh = 26;
+    const top = 24 + Math.max(0, (h - 24 - 210) / 2);   // the bars sit in the middle of the space under the legend
+    let out = legend(names.map(n => [n, tone[n]]));
+    rows.forEach(([label, k], i) => {
+      const y = top + i * 66, total = names.reduce((t, n) => t + P[n][k], 0);
+      out += svgText(0, y + bh / 2 + 4, label, "tick");
+      let x = L;
+      names.forEach(n => {
+        const len = P[n][k] / total * bw;
+        out += `<rect x="${x}" y="${y}" width="${Math.max(1, len - 1)}" height="${bh}" rx="3" fill="${tone[n]}"/>`;
+        if (len > 64) out += svgText(x + 8, y + bh / 2 + 4, fmt(P[n][k]), "inbar");
+        else out += svgText(w, y + bh + 16, fmt(P[n][k]), "tick num", "end");
+        x += len;
+      });
+    });
+    const y = top + 2 * 66 + 6;
+    out += svgText(0, y + 12, "Completed", "tick");
+    names.forEach((n, j) => {
+      const rate = P[n].completed / P[n].trajectories, yy = y + j * 20;
+      out += `<rect x="${L}" y="${yy + 2}" width="${bw - 52}" height="12" rx="3" fill="#eef1f4"/><rect x="${L}" y="${yy + 2}" width="${(bw - 52) * rate}" height="12" rx="3" fill="${tone[n]}"/>`
+        + svgText(w, yy + 12, pct(P[n].completed, P[n].trajectories), "tick num", "end");
+    });
+    return out;
+  }
+  function difficulty(w, h) {
+    const items = D.difficulty, colors = ["#3fae8a", "#e2b13c", "#e8803f", "#c9473b"], top = Math.max(...items.map(d => d[1]));
+    const total = items.reduce((t, [, n]) => t + n, 0), T = 22, B = 26, ph = h - T - B, base = T + ph, slot = w / items.length, bw = Math.min(64, slot * .6);
+    let out = "";
+    items.forEach(([name, n], i) => {
+      const mid = (i + .5) * slot, y = base - n / top * ph;
+      out += `<rect x="${mid - bw / 2}" y="${y}" width="${bw}" height="${base - y}" rx="3" fill="${colors[i]}"/>` + svgText(mid, y - 7, pct(n, total), "dval", "middle")
+        + svgText(mid, base + 18, name[0].toUpperCase() + name.slice(1), "tick", "middle");
+    });
+    return out + `<line x1="0" x2="${w}" y1="${base}" y2="${base}" class="grid"/>`;
+  }
+  function length(w, h) {
+    const E = D.length_edges, T = 28, B = 24, L = 4, ph = h - T - B, base = T + ph;
+    const lx = v => L + Math.log10(v) / Math.log10(E[E.length - 1] * 1.6) * (w - L - 4);
+    const shares = names.map(n => P[n].length.map(c => c / P[n].trajectories)), top = Math.max(...shares.flat());
+    let out = legend(names.map(n => [n, tone[n]]));
+    [1, 10, 100, 1000].forEach(v => out += `<line x1="${lx(v)}" x2="${lx(v)}" y1="${T}" y2="${base}" class="grid"/>` + svgText(lx(v), base + 17, fmt(v), "tick", "middle"));
+    out += svgText(w, base + 17, "steps", "tick", "end");
+    names.forEach((n, j) => {
+      const pts = E.map((e, i) => [lx(i < E.length - 1 ? Math.sqrt(e * E[i + 1]) : e * 1.25), base - shares[j][i] / top * (ph - 6)]);
+      // a smooth line through the bin centres that never overshoots them (monotone cubic)
+      const k = pts.length, dx = [], m = [], t = [];
+      for (let i = 0; i < k - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+      for (let i = 0; i < k; i++) t[i] = i === 0 ? m[0] : i === k - 1 ? m[k - 2] : m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+      for (let i = 0; i < k - 1; i++) {
+        if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+        const a = t[i] / m[i], b = t[i + 1] / m[i], q = a * a + b * b;
+        if (q > 9) { t[i] = 3 * a / Math.sqrt(q) * m[i]; t[i + 1] = 3 * b / Math.sqrt(q) * m[i]; }
+      }
+      let d = `M${pts[0][0]},${pts[0][1]}`;
+      for (let i = 0; i < k - 1; i++) d += ` C${pts[i][0] + dx[i] / 3},${pts[i][1] + t[i] * dx[i] / 3} ${pts[i + 1][0] - dx[i] / 3},${pts[i + 1][1] - t[i + 1] * dx[i] / 3} ${pts[i + 1][0]},${pts[i + 1][1]}`;
+      out += `<path d="${d} L${pts[pts.length - 1][0]},${base} L${pts[0][0]},${base} Z" fill="${tone[n]}" opacity=".16"/><path d="${d}" fill="none" stroke="${tone[n]}" stroke-width="2.4"/>`;
+    });
+    return out + `<line x1="0" x2="${w}" y1="${base}" y2="${base}" class="grid"/>`;
+  }
+  function progress(w, h) {
+    const buckets = [["Under 10%", [0]], ["10–49%", [1, 2, 3, 4]], ["50–99%", [5, 6, 7, 8, 9]], ["Complete", [10]]];
+    const L = 104, bw = w - L, bh = 30;
+    const top = 24 + Math.max(0, (h - 24 - 124) / 2);
+    let out = legend(buckets.map(([b], i) => [b, PROGRESS[i]]));
+    names.forEach((n, j) => {
+      const y = top + j * 64, counts = buckets.map(([, bins]) => bins.reduce((t, b) => t + P[n].progress[b], 0)), total = P[n].trajectories;
+      out += svgText(0, y + bh / 2 + 4, n, "tick");
+      let x = L;
+      counts.forEach((c, i) => {
+        const len = c / total * bw;
+        out += `<rect x="${x}" y="${y}" width="${Math.max(0, len - 1)}" height="${bh}" rx="2" fill="${PROGRESS[i]}"/>`;
+        if (len > 38) out += svgText(x + len / 2, y + bh / 2 + 4, pct(c, total), i > 1 ? "inbar" : "dval", "middle");
+        x += len;
+      });
+    });
+    return out;
+  }
+  const draw = {
+    genre: (w, h) => donut(w, h, D.genre, GENRE), engine: (w, h) => donut(w, h, D.engine, ENGINE),
+    players, difficulty, length, progress,
+  };
+  const render = () => document.querySelectorAll("#dash .dbody").forEach(el => {
+    const w = el.clientWidth, h = el.clientHeight;
+    el.innerHTML = `<svg class="chart" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${draw[el.dataset.k](w, h)}</svg>`;
+  });
+  render(); addEventListener("resize", render); document.fonts && document.fonts.ready.then(render);
+}
+
 /* ============ leaderboard ============ */
 // One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
 // share a rank. The longer table scrolls inside a frame as tall as the shorter one.
@@ -1457,11 +1574,8 @@ function initBoard(boards) {
     render();
   });
   const level = () => {
-    const scrolls = cards.map(c => $(".lb-scroll", c));
-    scrolls.forEach(el => el.style.maxHeight = "");
-    if (getComputedStyle($(".boards")).gridTemplateColumns.split(" ").length < 2) return;
-    const h = Math.min(...scrolls.map(el => el.scrollHeight));
-    scrolls.forEach(el => el.style.maxHeight = h + "px");
+    const stage = $(".boards").closest(".pin-stage");
+    cards.forEach(c => { const el = $(".lb-scroll", c); el.style.maxHeight = Math.max(240, stage.clientHeight - offsetIn(el, stage) - 34) + "px"; });
   };
   level(); addEventListener("resize", level);
 }
@@ -1469,7 +1583,7 @@ function initBoard(boards) {
 /* ============ results ============ */
 const svgText = (x, y, text, cls, anchor = "start") => `<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}">${esc(text)}</text>`;
 const niceTop = v => Math.ceil(v * 1.12 / 10) * 10;
-function initResults(R, D) {
+function initResults(R) {
   const SUITES = [["PlayerBench", "#main-pb"], ["GameWorld", "#main-gw"]];
   let metric = "progress";
   // Base and trained side by side for each model; both panels share one scale.
@@ -1528,35 +1642,7 @@ function initResults(R, D) {
     const b = e.target.closest("button"); if (!b) return;
     metric = b.dataset.k; document.querySelectorAll("#main-metric button").forEach(x => x.classList.toggle("on", x === b)); bars(+$("#steps").getAttribute("height"));
   });
-  // What the models were trained on: trajectories by genre, by task difficulty and by length.
-  function distribution(svg, title, data, horizontal) {
-    const w = svg.clientWidth, h = 300, T = 34, top = Math.max(...data.map(d => d[1]));
-    let out = svgText(0, 16, title, "title");
-    if (horizontal) {
-      const L = 92, R_ = 46, rh = (h - T) / data.length, bw = w - L - R_;
-      data.forEach(([name, n], i) => {
-        const y = T + i * rh, len = n / top * bw;
-        out += svgText(L - 8, y + rh / 2 + 4, name, "tick", "end") + `<rect x="${L}" y="${y + rh * .18}" width="${len}" height="${rh * .64}" rx="2" class="b-ours"/>`
-          + svgText(L + len + 6, y + rh / 2 + 4, fmt(n), "v-base");
-      });
-    } else {
-      const B = 24, ph = h - T - B - 18, base = T + 18 + ph, slot = w / data.length, bw = Math.min(56, slot * .62);
-      data.forEach(([name, n], i) => {
-        const mid = (i + .5) * slot, y = base - n / top * ph;
-        out += `<rect x="${mid - bw / 2}" y="${y}" width="${bw}" height="${base - y}" rx="2" class="b-ours"/>` + svgText(mid, y - 6, fmt(n), "v-base", "middle")
-          + svgText(mid, base + 18, name, "tick", "middle");
-      });
-      out += `<line x1="0" x2="${w}" y1="${base}" y2="${base}" class="grid"/>`;
-    }
-    svg.setAttribute("height", h); svg.innerHTML = out;
-  }
-  const cap = s => s[0].toUpperCase() + s.slice(1);
-  const dataset = () => {
-    distribution($("#ds-genre"), "Genre", D.genre, true);
-    distribution($("#ds-difficulty"), "Task difficulty", D.difficulty.map(([k, n]) => [cap(k), n]));
-    distribution($("#ds-length"), "Trajectory length in steps", D.length);
-  };
-  const draw = () => { dataset(); bars(steps()); };
+  const draw = () => bars(steps());
   ablation(); draw();
   addEventListener("resize", draw); document.fonts && document.fonts.ready.then(draw);
   initCompare(R.compare);
