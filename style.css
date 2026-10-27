@@ -356,7 +356,9 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
 .ripple { position: absolute; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; border: 3px solid var(--player); pointer-events: none; opacity: 0; }
 .transport { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 8px; }
 .transport button { width: 36px; height: 28px; border: 1px solid var(--rule-2); border-radius: var(--radius); background: #fff; cursor: pointer; font: 12px/1 var(--sans); color: var(--ink); }
-.transport .time { font: 13px var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+/* the clock beside a scrubber: digits of one width (Public Sans) in a box wide enough for
+   "999.9 / 999.9", so the scrubber keeps its length as the time changes */
+.transport .time { min-width: 7.6em; font: 13px "Public Sans", var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; }
 .scrub { height: 28px; border: 1px solid var(--rule-2); border-radius: 4px; cursor: pointer; overflow: hidden; }
 .scrub canvas { width: 100%; height: 100%; }
 .deck { display: flex; gap: 12px; align-items: flex-end; margin-top: 10px; }
@@ -584,7 +586,7 @@ svg.chart .v.s-pb { fill: var(--player-ink); } svg.chart .v.s-gw { fill: var(--i
 .cmp-legend b { margin-left: 2px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .cmp-plot { position: relative; flex: 1 1 0; min-height: 120px; cursor: pointer; touch-action: none; }
 .cmp-plot canvas { position: absolute; left: 0; top: 0; }
-.cmp-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font: 13px var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.cmp-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font: 13px "Public Sans", var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .cmp-foot button { width: 36px; height: 28px; border: 1px solid var(--rule-2); border-radius: var(--radius); background: #fff; cursor: pointer; font: 12px/1 var(--sans); color: var(--ink); }
 @media (max-width: 1100px) {
   .cmp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
