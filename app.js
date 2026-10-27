@@ -40,14 +40,14 @@ function fit(canvas, cssH) {
 const load = p => fetch(p).then(r => r.json());
 initNav();
 initCite();
-Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json", "assets/results.json"].map(load))
-  .then(([tiles, data, stories, policies, results]) => {
-    initIntro(tiles);
+Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json", "assets/results.json", "assets/dataset.json"].map(load))
+  .then(([tiles, data, stories, policies, results, dataset]) => {
+    initIntro(tiles, dataset.totals);
     initBoard(results.leaderboard);
     initLoop(stories, tiles);
     initExamples(data.replays);
     initPlayers(policies);
-    initResults(results);
+    initResults(results, dataset);
   });
 
 /* ============ the bar along the top ============ */
@@ -84,7 +84,7 @@ function initNav() {
 }
 
 /* ============ opening wall -> games ============ */
-function initIntro(T) {
+function initIntro(T, D) {
   const games = T.games, N = games.length, [TW, TH] = T.tile, COLS = T.cols;
   const canvas = $("#wall"), intro = $("#intro"), head = $("#games-head"), band = $("#title-band");
   const tip = $("#tip"), tipVideo = $("#tip-video");
@@ -112,8 +112,10 @@ function initIntro(T) {
   }
   games.forEach((g, i) => { g.i = i; g.cur = {}; g.zoom = 0; g.vel = 0; g.touched = 0; g.group = { genre: GROUP_OF.genre(g), engine: GROUP_OF.engine(g) }; });
 
-  // the games on the wall and their tasks, counted up from zero each time they come into view
-  const counts = [[N, "games"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks"]];
+  // the games on the wall and their tasks, then the training set made from their play, counted
+  // up from zero each time they come into view
+  const counts = [[N, "games"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks"], [D.trajectories, "trajectories"],
+    [D.steps, "steps"], [Math.round(D.hours), "hours of gameplay"]];
   $("#bignums").innerHTML = counts.map(([n, s]) => `<div><b data-to="${n}">${fmt(n)}</b><span>${s}</span></div>`).join("");
   let counted = false;
   function countUp() {
@@ -1431,29 +1433,42 @@ function initPlayers(index) {
 }
 
 /* ============ leaderboard ============ */
-// PlayerBench, ranked by the column whose header was clicked; equal scores share a rank.
-function initBoard(rows) {
-  let key = "progress";
-  function render() {
-    const sorted = [...rows].sort((a, b) => b[key] - a[key] || b.progress - a.progress);
-    let rank = 0;
-    sorted.forEach((r, i) => { if (!i || r[key] !== sorted[i - 1][key]) rank = i + 1; r.rank = rank; });
-    const top = Math.max(...rows.map(r => r[key]));
-    const cell = (r, k) => k === key
-      ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(1)}</b></div></td>`
-      : `<td class="n">${r[k].toFixed(1)}</td>`;
-    $("#board-rows").innerHTML = sorted.map(r => `<tr${r.kind === "ours" ? ' class="ours"' : ""}><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
-      <td><b>${esc(r.name)}</b><span class="effort">thinking: ${r.thinking}</span></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
-    document.querySelectorAll(".lb th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
-  }
-  document.querySelectorAll(".lb th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
-  render();
+// One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
+// share a rank. The longer table scrolls inside a frame as tall as the shorter one.
+function initBoard(boards) {
+  const cards = [...document.querySelectorAll(".lb[data-suite]")];
+  cards.forEach(card => {
+    const rows = boards[card.dataset.suite];
+    let key = "progress";
+    function render() {
+      const sorted = [...rows].sort((a, b) => b[key] - a[key] || b.progress - a.progress);
+      let rank = 0;
+      sorted.forEach((r, i) => { if (!i || r[key] !== sorted[i - 1][key]) rank = i + 1; r.rank = rank; });
+      const top = Math.max(...rows.map(r => r[key]));
+      const cell = (r, k) => k === key
+        ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(1)}</b></div></td>`
+        : `<td class="n">${r[k].toFixed(1)}</td>`;
+      $("tbody", card).innerHTML = sorted.map(r => `<tr class="row-${r.kind}"><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
+        <td><b>${esc(r.name)}</b><span class="effort">${esc(r.note)}</span></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
+      card.querySelectorAll("th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
+    }
+    card.querySelectorAll("th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
+    render();
+  });
+  const level = () => {
+    const scrolls = cards.map(c => $(".lb-scroll", c));
+    scrolls.forEach(el => el.style.maxHeight = "");
+    if (getComputedStyle($(".boards")).gridTemplateColumns.split(" ").length < 2) return;
+    const h = Math.min(...scrolls.map(el => el.scrollHeight));
+    scrolls.forEach(el => el.style.maxHeight = h + "px");
+  };
+  level(); addEventListener("resize", level);
 }
 
 /* ============ results ============ */
 const svgText = (x, y, text, cls, anchor = "start") => `<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}">${esc(text)}</text>`;
 const niceTop = v => Math.ceil(v * 1.12 / 10) * 10;
-function initResults(R) {
+function initResults(R, D) {
   const SUITES = [["PlayerBench", "#main-pb"], ["GameWorld", "#main-gw"]];
   let metric = "progress";
   // Base and trained side by side for each model; both panels share one scale.
@@ -1470,7 +1485,7 @@ function initResults(R) {
           const v = g[k][suite][metric], x = mid + side * (bw / 2 + 3) - bw / 2;
           out += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${base - y(v)}" rx="2" class="b-${k}"/>` + svgText(x + bw / 2, y(v) - 7, v.toFixed(1), "v-" + k, "middle");
         });
-        out += svgText(mid, base + 21, g.thinking === "on" ? `${g.size} thinking` : g.size, "cat", "middle");
+        out += svgText(mid, base + 21, g.thinking === "on" ? `${g.size}, thinking on` : g.size, "cat", "middle");
       });
       svg.setAttribute("height", h); svg.innerHTML = out;
     });
@@ -1512,7 +1527,35 @@ function initResults(R) {
     const b = e.target.closest("button"); if (!b) return;
     metric = b.dataset.k; document.querySelectorAll("#main-metric button").forEach(x => x.classList.toggle("on", x === b)); bars(+$("#steps").getAttribute("height"));
   });
-  const draw = () => bars(steps());
+  // What the models were trained on: trajectories by genre, by task difficulty and by length.
+  function distribution(svg, title, data, horizontal) {
+    const w = svg.clientWidth, h = 300, T = 34, top = Math.max(...data.map(d => d[1]));
+    let out = svgText(0, 16, title, "title");
+    if (horizontal) {
+      const L = 92, R_ = 46, rh = (h - T) / data.length, bw = w - L - R_;
+      data.forEach(([name, n], i) => {
+        const y = T + i * rh, len = n / top * bw;
+        out += svgText(L - 8, y + rh / 2 + 4, name, "tick", "end") + `<rect x="${L}" y="${y + rh * .18}" width="${len}" height="${rh * .64}" rx="2" class="b-ours"/>`
+          + svgText(L + len + 6, y + rh / 2 + 4, fmt(n), "v-base");
+      });
+    } else {
+      const B = 24, ph = h - T - B - 18, base = T + 18 + ph, slot = w / data.length, bw = Math.min(56, slot * .62);
+      data.forEach(([name, n], i) => {
+        const mid = (i + .5) * slot, y = base - n / top * ph;
+        out += `<rect x="${mid - bw / 2}" y="${y}" width="${bw}" height="${base - y}" rx="2" class="b-ours"/>` + svgText(mid, y - 6, fmt(n), "v-base", "middle")
+          + svgText(mid, base + 18, name, "tick", "middle");
+      });
+      out += `<line x1="0" x2="${w}" y1="${base}" y2="${base}" class="grid"/>`;
+    }
+    svg.setAttribute("height", h); svg.innerHTML = out;
+  }
+  const cap = s => s[0].toUpperCase() + s.slice(1);
+  const dataset = () => {
+    distribution($("#ds-genre"), "Genre", D.genre, true);
+    distribution($("#ds-difficulty"), "Task difficulty", D.difficulty.map(([k, n]) => [cap(k), n]));
+    distribution($("#ds-length"), "Trajectory length in steps", D.length);
+  };
+  const draw = () => { dataset(); bars(steps()); };
   ablation(); draw();
   addEventListener("resize", draw); document.fonts && document.fonts.ready.then(draw);
   initCompare(R.compare);
