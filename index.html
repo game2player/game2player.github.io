@@ -44,7 +44,7 @@
     <canvas id="wall"></canvas>
     <div class="title-band" id="title-band">
       <h1 class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></h1>
-      <p class="sub">From Automated Co-Synthesis of Game Environments and Code Policies to VLM Players</p>
+      <p class="sub">Co-Synthesis of Verifiable Game Environments and Code Policies for VLM Players</p>
       <p class="people"><span class="tbd-slot">Authors</span></p>
       <p class="affil"><span class="tbd-slot">Affiliations</span></p>
       <div class="links">
@@ -94,8 +94,9 @@
   <header class="wrap intro">
     <h2 class="sec">The Loop</h2>
     <div class="prose">
-      <p>Each game goes through a loop of agents. The <span class="sname" data-k="scout"></span> looks at where the game is published, how it is built and whether its state can be read, and decides whether to take it. The <span class="sname" data-k="builder"></span> gets the game running offline with a fixed seed, exposes its state through <code>game_api.js</code> and writes tasks. It checks each task before the task ships.</p>
-      <p>The <span class="sname" data-k="env"></span> is then played by the <span class="sname" data-k="policy"></span> and the <span class="sname" data-k="vlm"></span> on every task. Problems come back to the Builder as <span class="sname" data-k="reports"></span>. A VLM Player may see no response to its keys, or a Coding Player may need a variable the game does not expose yet. The Builder checks each report against the recording before it changes anything. Every episode is kept as <span class="sname" data-k="data"></span>.</p>
+      <p>Each game goes through a loop of agents. The <span class="sname" data-k="scout"></span> looks at where the game is published, how it is built and whether its state can be read, and decides whether to take it. The <span class="sname" data-k="builder"></span> gets the game running offline with a fixed seed, exposes its state through <code>game_api.js</code> and writes tasks. It works from a skill for each engine, such as Unity, Flash or PICO-8, and checks every task before handing it on.</p>
+      <p>The <span class="sname" data-k="env"></span> is then played by the <span class="sname" data-k="policy"></span> and the <span class="sname" data-k="vlm"></span> on every task. Problems come back to the Builder as <span class="sname" data-k="reports"></span>. A VLM Player may see no response to its keys, or a Coding Player may need a variable the game does not expose yet. The Builder checks each report against the recording before it changes anything.</p>
+      <p>The loop gives two things. Once its tasks hold up in play and a policy can solve most of them, the game joins the <span class="sname" data-k="envs"></span>, ready to run offline. Every episode played along the way, solved or not, is kept as <span class="sname" data-k="data"></span>. So one game gives one environment and many episodes.</p>
       <p class="hint">Click a stage in the figure, or a name above, to see what it did for one game, Pico World Race.</p>
     </div>
   </header>
@@ -106,10 +107,11 @@
           <canvas id="cycle-fx"></canvas>
           <div class="logos" id="logos"></div>
           <button class="node" data-k="scout"></button>
-          <button class="node" data-k="builder"></button>
+          <div class="pgroup bgroup" id="bgroup"><button class="node" data-k="builder"></button><div class="skills" id="skills"></div></div>
           <button class="node" data-k="env"></button>
           <div class="pgroup" id="pgroup"><button class="node" data-k="policy"></button><button class="node" data-k="vlm"></button></div>
           <button class="node" data-k="reports"></button>
+          <button class="node" data-k="envs"></button>
           <button class="node" data-k="data"></button>
         </div>
       </div>
@@ -273,8 +275,8 @@
   <header class="wrap intro"><h2 class="sec">Citation</h2></header>
   <div class="wrap">
     <div class="bib"><button id="bib-copy">Copy</button><pre id="bib">@article{game2player,
-  title   = {Game2Player: From Automated Co-Synthesis of Game Environments
-             and Code Policies to VLM Players},
+  title   = {Game2Player: Co-Synthesis of Verifiable Game Environments
+             and Code Policies for VLM Players},
   author  = {xxx},
   journal = {arXiv preprint arXiv:xxxx.xxxxx},
   year    = {xxxx}

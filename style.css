@@ -68,7 +68,7 @@ body.nav-on .topnav { transform: none; }
   background: #fff; border-radius: var(--radius); padding: 32px 48px 34px; text-align: center; white-space: nowrap;
 }
 .title-band h1 { font: 700 clamp(40px, 5.4vw, 76px)/1.05 var(--sans); letter-spacing: -.025em; margin: 0; color: var(--ink); }
-.title-band .sub { margin: 10px auto 0; font: 500 clamp(15px, 1.45vw, 20px)/1.35 var(--sans); color: var(--ink-2); white-space: normal; max-width: 34em; }
+.title-band .sub { margin: 10px auto 0; font: 500 clamp(15px, 1.45vw, 20px)/1.35 var(--sans); color: var(--ink-2); white-space: normal; max-width: 34em; text-wrap: balance; }
 .title-band .people { margin: 20px 0 0; font: 500 16px/1.4 var(--sans); }
 .title-band .affil { margin: 6px 0 0; font: 14px/1.4 var(--sans); color: var(--ink-2); }
 .title-band .links { pointer-events: auto; display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
@@ -101,15 +101,19 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
 .prose p { margin: 14px 0 0; font: 17px/1.7 var(--sans); color: var(--ink); }
 .prose b { font-weight: 600; }
 .prose .hint { font-size: 15px; color: var(--ink-3); }
-/* what to take away: in colour and a little larger, never bold black */
-.em { color: var(--game); font-size: 1.06em; font-weight: 500; }
-/* a stage named in the text: the loop's button, small; clicking it shows that stage */
-.sname { display: inline-flex; align-items: stretch; vertical-align: -.36em; height: 1.65em; margin: 0 .08em; border: 1.5px solid var(--tone); border-radius: 5px;
-  background: #fff; overflow: hidden; cursor: pointer; font: 500 .9em/1 var(--sans); color: var(--ink); white-space: nowrap; transition: background .15s; }
-.sname .ic { display: grid; place-items: center; width: 1.8em; border-right: 1.5px solid var(--tone); color: var(--tone); }
+/* what to take away: bold, in colour and a little larger, never black */
+.em { color: var(--game); font-size: 1.06em; font-weight: 700; }
+.prose .name { font-weight: 700; }
+/* a stage named in the text: the loop's button, small; clicking it shows that stage. Its word
+   sits on the line's baseline (an inline-block takes the baseline of its text), and the line
+   height of the box centres the word in it. */
+.sname { position: relative; display: inline-block; height: 1.65em; padding-left: 1.8em; margin: 0 .08em; border: 1.5px solid var(--tone); border-radius: 5px;
+  background: #fff; cursor: pointer; font: 500 .9em var(--sans); line-height: calc(1.65em - 3px); color: var(--ink); white-space: nowrap; transition: background .15s; }
+.sname .ic { position: absolute; left: 0; top: 0; bottom: 0; display: grid; place-items: center; width: 1.8em; border-right: 1.5px solid var(--tone); color: var(--tone); }
 .sname .ic svg { width: 1.05em; height: 1.05em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
-.sname .t { display: flex; align-items: center; padding: 0 .55em; }
+.sname .t { padding: 0 .55em; }
 .sname:hover { background: var(--tint); }
+.nobr { white-space: nowrap; }
 .prose code, .contrib code { font: 500 .86em/1 var(--mono); color: var(--player-ink); background: var(--player-wash); padding: .12em .32em; border-radius: 3px; white-space: nowrap; }
 /* what the project contributes, one card each, coloured like its part of the loop */
 .contrib { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 22px; }
@@ -148,10 +152,11 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
 .cycle-box { position: relative; margin-bottom: 18px; }
 .cycle { position: absolute; left: 50%; top: 0; transform-origin: 50% 0; --nw: 168px; --nh: 56px; }
 #cycle-fx { position: absolute; inset: 0; width: 100%; height: 100%; }
-.node[data-k=scout], .sname[data-k=scout], .node[data-k=data], .sname[data-k=data] { --tone: #4b5563; --tint: #eef1f4; }
-.node[data-k=builder], .sname[data-k=builder], .node[data-k=env], .sname[data-k=env] { --tone: var(--game); --tint: var(--game-soft); }
+/* what we build in teal, what play gives in iris, what comes back in coral */
+.node[data-k=scout], .sname[data-k=scout] { --tone: #4b5563; --tint: #eef1f4; }
+.node[data-k=builder], .sname[data-k=builder], .node[data-k=env], .sname[data-k=env], .node[data-k=envs], .sname[data-k=envs] { --tone: var(--game); --tint: var(--game-soft); }
 .node[data-k=reports], .sname[data-k=reports] { --tone: var(--turn); --tint: var(--turn-soft); }
-.node[data-k=policy], .sname[data-k=policy], .node[data-k=vlm], .sname[data-k=vlm] { --tone: var(--player); --tint: var(--player-soft); }
+.node[data-k=policy], .sname[data-k=policy], .node[data-k=vlm], .sname[data-k=vlm], .node[data-k=data], .sname[data-k=data] { --tone: var(--player); --tint: var(--player-soft); }
 .node { position: absolute; z-index: 2; transform: translate(-50%, -50%); width: var(--nw); height: var(--nh);
   background: #fff; border: 1.5px solid var(--tone); border-radius: 7px; overflow: hidden;
   display: grid; grid-template-columns: 46px 1fr; align-items: center; padding: 0; text-align: center; cursor: pointer;
@@ -164,6 +169,16 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
 .pgroup { position: absolute; z-index: 1; transform: translate(-50%, -50%); display: grid; gap: 8px; padding: 10px; border-radius: 10px;
   background: #fff; border: 1.5px dashed var(--player-mid); }
 .pgroup .node { position: static; transform: none; width: 192px; }
+/* the Builder framed the same way, over its skills: a box, not a stage, with a few of the
+   engines it has a skill for; the one for the engine of a game coming in lights up */
+.bgroup { border-color: var(--game-mid); }
+.skills { display: grid; grid-template-columns: 46px minmax(0, 1fr); height: var(--nh); border: 1px solid var(--game-mid); border-radius: 7px; background: var(--game-wash); }
+.skills .lbl { display: grid; place-items: center; border-right: 1px solid var(--game-mid); font: 600 12.5px/1 var(--sans); color: var(--game); }
+.skills > div { display: grid; grid-template-columns: 1fr 1fr; align-content: center; gap: 7px 4px; padding: 0 4px 0 8px; }
+.skills span[data-engine] { display: flex; align-items: center; gap: 4px; margin: -2px -3px; padding: 2px 3px; border-radius: 4px;
+  font: 600 12.5px/1 var(--sans); color: var(--ink-2); white-space: nowrap; transition: background .25s, color .25s; }
+.skills img { width: 14px; height: 14px; flex: none; }
+.skills span.lit { background: var(--game-soft); color: var(--ink); }
 .sweep { transform-origin: 12px 12px; animation: sweep 2.8s linear infinite; }
 @keyframes sweep { to { transform: rotate(360deg); } }
 /* where the Scout looks: the sites the games came from, drifting in a loose column */
@@ -181,8 +196,8 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
    right a board ruled like the other pages' panels, three numbered steps over three equal cards */
 .loop-panel { --tone: #4b5563; --tint: #eef1f4; height: 290px; border-top: 1px solid var(--rule); padding-top: 20px;
   display: grid; grid-template-columns: 232px minmax(0, 1fr); column-gap: 32px; overflow: hidden; }
-.loop-panel[data-k=builder], .loop-panel[data-k=env] { --tone: var(--game); --tint: var(--game-soft); }
-.loop-panel[data-k=policy], .loop-panel[data-k=vlm] { --tone: var(--player); --tint: var(--player-soft); }
+.loop-panel[data-k=builder], .loop-panel[data-k=env], .loop-panel[data-k=envs] { --tone: var(--game); --tint: var(--game-soft); }
+.loop-panel[data-k=policy], .loop-panel[data-k=vlm], .loop-panel[data-k=data] { --tone: var(--player); --tint: var(--player-soft); }
 .loop-panel[data-k=reports] { --tone: var(--turn); --tint: var(--turn-soft); }
 .lp-head { padding-top: 2px; }
 .lp-head .ic { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 7px; margin-bottom: 14px; background: var(--tone); color: #fff; }
@@ -233,9 +248,6 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
   font: 600 .86em/1.2 var(--sans); color: var(--ink); text-align: center; }
 .typed, .say { margin: 0; font: 14px/1.65 var(--sans); color: var(--ink); }
 .lead { margin: 10px 0 4px; font: 13px/1.4 var(--sans); color: var(--ink-3); }
-.ideas { margin: 0; padding-left: 18px; font: 13px/1.5 var(--sans); color: var(--ink); }
-.ideas li { margin-bottom: 3px; }
-.ideas li::marker { color: var(--ink-3); font-weight: 600; }
 .api, .mini { margin: 0; height: 100%; padding: 12px 14px; font: 11.5px/1.55 var(--mono); color: var(--ink); overflow: hidden; white-space: pre; }
 .mini { padding: 10px 0; }
 .mini span { display: block; padding: 0 14px 0 8px; opacity: .38; transition: background .12s, opacity .12s; }
@@ -246,6 +258,16 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
 .phases li::before { content: ""; position: absolute; left: 0; top: 2px; width: 14px; height: 14px; border: 1.5px solid var(--tone); border-radius: 4px; background: var(--tint); }
 .phases li::after { content: ""; position: absolute; left: 6px; top: 4.5px; width: 4px; height: 7px; border: solid var(--tone); border-width: 0 1.7px 1.7px 0; transform: rotate(45deg); }
 .phases b { font-weight: 600; margin-right: 5px; }
+/* a released game: its tasks, and which of them a policy has solved */
+.tasklist { list-style: none; margin: 0; padding: 0; font: 12.5px/1.52 var(--sans); color: var(--ink); }
+.tasklist li { display: flex; gap: 8px; min-width: 0; }
+.tasklist b { flex: none; font: 600 11.5px/1.65 var(--mono); color: var(--tone); }
+.tasklist span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.solved { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 16px; }
+.solved span { position: relative; display: grid; place-items: center; width: 25px; height: 25px; border: 1.5px solid #b7c0ca; border-radius: 5px;
+  font: 600 11.5px/1 var(--mono); color: var(--ink-3); }
+.solved i { position: absolute; inset: -1.5px; display: grid; place-items: center; border-radius: 5px; background: var(--tone); color: #fff; font-style: normal; }
+.kv b { font-weight: 600; color: var(--ink); }
 .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rule); font: 13px/1.5 var(--sans); color: var(--ink-3); }
 .meter { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .meter b { font: 700 34px/1 var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; }
