@@ -28,6 +28,7 @@ const fmt = n => n.toLocaleString("en-US");
 const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const compactLayout = matchMedia("(max-width: 1100px), (max-height: 760px)");
+const touch = matchMedia("(pointer: coarse)");
 const sources = mp4 => `<source src="${mp4}" type="video/mp4"><source src="${mp4.replace(/\.mp4$/, ".webm")}" type="video/webm">`;
 function setVideo(video, mp4) { video.removeAttribute("src"); video.innerHTML = sources(mp4); video.load(); }
 
@@ -55,8 +56,11 @@ Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "as
 
 /* ============ the bar along the top ============ */
 function navH() { return $("#topnav").offsetHeight; }
-// A taller game wall uses normal page scrolling after its opening transition.
-function introTravel(intro) { return Math.max(1, intro.offsetHeight - intro.querySelector(".stage").offsetHeight); }
+// The opening's progress once the games sit in their groups with their labels.
+const GROUPED = .63;
+// The scroll that takes the opening from 0 to 1. Groups taller than the screen get no hold:
+// their stage lets go at GROUPED and the page scrolls on through them.
+function introTravel(intro) { return Math.max(1, intro.offsetHeight - intro.querySelector(".stage").offsetHeight) / (+intro.dataset.until || 1); }
 // How far the page has scrolled through a pinned chapter's hold, from 0 to 1.
 function progressIn(pin) {
   const span = pin.offsetHeight - pin.firstElementChild.offsetHeight;
@@ -73,7 +77,7 @@ function initNav() {
   const LINK = {};   // chapters shown under another chapter's link
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
-  const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + introTravel(intro) * .72 : topOf(document.getElementById(id)) - 24;
+  const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + introTravel(intro) * Math.min(.72, +intro.dataset.until || 1) : topOf(document.getElementById(id)) - 24;
   document.addEventListener("click", e => {
     const a = e.target.closest("a[data-go], a.soon"); if (!a) return;
     e.preventDefault();
@@ -159,7 +163,9 @@ function initIntro(T, D) {
     const buckets = {}; games.forEach(g => (buckets[g.group[key]] = buckets[g.group[key]] || []).push(g.i));
     const rest = name => name.startsWith("Other");   // Other and Other engines come last
     const names = Object.keys(buckets).sort((a, b) => rest(a) - rest(b) || buckets[b].length - buckets[a].length);
-    const minimum = 32;
+    // A mouse can point at small tiles, so they shrink until every group fits on the screen; a
+    // finger needs tiles it can tap, and the groups run past the screen instead.
+    const minimum = touch.matches ? 32 : 6;
     for (let tw = 64; tw >= minimum; tw--) {
       const th = tw * 9 / 16, gap = 3, labelH = 22, pos = [], labels = [];
       let x = 0, y = 0, rowH = 0, ok = true;
@@ -183,16 +189,16 @@ function initIntro(T, D) {
   function resize() {
     drawnP = -1;
     const stage = intro.querySelector(".stage");
-    stage.style.height = ""; intro.style.height = "";
+    stage.style.height = ""; intro.style.height = ""; delete intro.dataset.until;
     W = canvas.clientWidth; H = stage.clientHeight;
-    const viewportH = H, dpr = window.devicePixelRatio || 1;
+    const viewportH = H, travel = intro.offsetHeight - viewportH, dpr = window.devicePixelRatio || 1;
     ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = "high";
     groups = { genre: layoutGroups("genre"), engine: layoutGroups("engine") };
     // Reserve space for the selected grouping, not the taller of both layouts.
     H = Math.ceil(Math.max(viewportH, groups[group].height));
     if (H > viewportH) {
       stage.style.height = H + "px";
-      intro.style.height = H + viewportH * (compactLayout.matches ? 1.3 : 2.3) + "px";
+      intro.style.height = H + travel * GROUPED + "px"; intro.dataset.until = GROUPED;
     }
     band.style.top = viewportH / 2 + "px";
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
