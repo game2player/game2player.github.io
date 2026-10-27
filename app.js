@@ -20,7 +20,7 @@ const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const fmt = n => n.toLocaleString("en-US");
 const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const compactLayout = matchMedia("(max-width: 900px)");
+const compactLayout = matchMedia("(max-width: 1100px), (max-height: 760px)");
 const sources = mp4 => `<source src="${mp4}" type="video/mp4"><source src="${mp4.replace(/\.mp4$/, ".webm")}" type="video/webm">`;
 function setVideo(video, mp4) { video.removeAttribute("src"); video.innerHTML = sources(mp4); video.load(); }
 
@@ -624,7 +624,7 @@ function initLoop(S, T) {
     // the board is as wide as its wider side needs, twice, so the ring stays in the middle
     DW = Math.round(2 * (R + Math.max(nw, gw) + GAP + 2 * nw + SIDE + HEAP_W) + 12);
     const availW = box.offsetWidth, availH = stage.clientHeight - offsetIn(box, stage) - panel.offsetHeight - 18 - 26;
-    const k = compactLayout.matches ? 1 : clamp(Math.min(availW / DW, availH / DH), .55, 1.12);
+    const k = compactLayout.matches ? 1 : Math.min(availW / DW, Math.max(0.1, availH / DH), 1.12);
     cycle.style.width = DW + "px"; cycle.style.height = DH + "px"; cycle.style.transform = compactLayout.matches ? "none" : `translateX(-50%) scale(${k})`;
     box.style.height = Math.round(DH * k) + "px";
     // on tall screens the drawing and its panel sit in the middle of the room under the title
