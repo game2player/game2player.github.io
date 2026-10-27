@@ -501,10 +501,10 @@ figure { margin: 18px 0 0; min-width: 0; }
 .lb tr.row-ours td:last-child { border-radius: 0 8px 8px 0; }
 .lb tr.row-ours .bar i { background: var(--player); }
 
-/* the training data: six panels in one pinned screen */
-.dash { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 18px 22px;
-  height: calc(100vh - var(--nav) - 22px - 30px); }
-.dpanel { display: flex; flex-direction: column; min-height: 0; padding: 14px 16px 12px; border: 1px solid var(--rule-2); border-radius: var(--radius); background: #fff; }
+/* Training data statistics: compact cards in normal document flow. */
+.dash { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 260px; gap: 12px;
+  margin-top: 16px; height: auto; }
+.dpanel { display: flex; flex-direction: column; min-height: 0; padding: 12px 14px; border: 1px solid var(--rule-2); border-radius: var(--radius); background: #fff; }
 .dpanel h4 { margin: 0 0 8px; font: 600 15.5px/1.3 var(--sans); color: var(--ink); }
 .dbody { position: relative; flex: 1; min-height: 0; }
 .dbody svg { position: absolute; inset: 0; }
@@ -512,7 +512,7 @@ svg.chart .dtotal { font: 700 19px var(--sans); fill: var(--ink); }
 svg.chart .dval { font: 600 12.5px var(--sans); fill: var(--ink-2); }
 svg.chart .inbar { font: 600 12.5px var(--sans); fill: #fff; }
 svg.chart .num { font-variant-numeric: tabular-nums; }
-@media (max-width: 1000px) { .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 300px; height: auto; } }
+@media (max-width: 1000px) { .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 260px; height: auto; } }
 
 /* two leaderboards side by side, pinned like the examples; a long table scrolls under its fixed header */
 .boards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
@@ -885,9 +885,11 @@ select {
   .board-controls { display: none; }
 }
 @media (max-width: 1100px), (max-height: 760px) {
-  .dash { height: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 300px; }
+  .dash { height: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 260px; }
   .boards .lb th.sort { width: 82px; }
 }
 @media (max-width: 600px) {
   .dash { grid-template-columns: minmax(0, 1fr); }
 }
+
+@media (max-width: 700px) { .dash { grid-template-columns: 1fr; } }

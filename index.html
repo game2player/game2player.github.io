@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Libre+Franklin:wght@400;500;600;700&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261027-clock">
+<link rel="stylesheet" href="style.css?v=20261027-data-stats">
 </head>
 <body>
 <!-- line icons, drawn like the ones in the loop -->
@@ -30,7 +30,7 @@
     <a class="brand name" href="#top" data-go="top"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></a>
     <select class="compact-control section-menu" id="section-menu" aria-label="Go to section"></select>
     <div class="links" id="nav-links">
-      <a href="#games" data-go="games">Games</a><a href="#abstract" data-go="abstract">Abstract</a><a href="#contributions" data-go="contributions">Contributions</a><a href="#leaderboard" data-go="leaderboard">Leaderboard</a><a href="#loop" data-go="loop">Method</a><a href="#examples" data-go="examples">Trajectories</a><a href="#players" data-go="players">Player Comparison</a><a href="#results" data-go="results">Results</a><a href="#cite" data-go="cite">Citation</a>
+      <a href="#games" data-go="games">Games</a><a href="#abstract" data-go="abstract">Abstract</a><a href="#contributions" data-go="contributions">Contributions</a><a href="#leaderboard" data-go="leaderboard">Leaderboard</a><a href="#loop" data-go="loop">Method</a><a href="#examples" data-go="examples">Trajectories</a><a href="#players" data-go="players">Player Comparison</a><a href="#dataset" data-go="dataset">Training Data</a><a href="#results" data-go="results">Results</a><a href="#cite" data-go="cite">Citation</a>
     </div>
     <div class="acts">
       <a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-paper"/></svg>Paper</a>
@@ -79,24 +79,7 @@
   </div>
 </div>
 
-<section class="chapter" id="dataset">
-  <header class="wrap intro">
-    <h2 class="sec">Training Data</h2>
-    <div class="method-summary"><p>Game2Player-4B and Game2Player-9B are trained on 15,707 trajectories with 1,563,640 steps and 307 hours of play, from 396 games and 2,251 tasks. The Coding Player played 12,856 of them and the VLM Player 2,851.</p></div>
-  </header>
-  <div class="pin" style="--hold: 55vh">
-    <div class="pin-stage"><div class="wrap">
-      <div class="dash" id="dash">
-        <div class="dpanel"><h4>Genre</h4><div class="dbody" data-k="genre"></div></div>
-        <div class="dpanel"><h4>Engine</h4><div class="dbody" data-k="engine"></div></div>
-        <div class="dpanel"><h4>Players</h4><div class="dbody" data-k="players"></div></div>
-        <div class="dpanel"><h4>Task difficulty</h4><div class="dbody" data-k="difficulty"></div></div>
-        <div class="dpanel"><h4>Trajectory length</h4><div class="dbody" data-k="length"></div></div>
-        <div class="dpanel"><h4>Progress at the end of a trajectory</h4><div class="dbody" data-k="progress"></div></div>
-      </div>
-    </div></div>
-  </div>
-</section>
+
 
 <section class="chapter flow" id="abstract">
   <header class="wrap intro"><h2 class="sec">Abstract</h2></header>
@@ -111,12 +94,12 @@
   <header class="wrap intro"><h2 class="sec">Contributions</h2></header>
   <div class="wrap">
     <div class="contrib">
-      <div style="--tone: var(--game); --tint: var(--game-soft)"><span class="ic"><svg class="i"><use href="#i-env"/></svg></span><h4>Verifiable game environments</h4>
-        <p>Game-state-based task definitions and progress and success checks for web games.</p></div>
-      <div style="--tone: var(--player); --tint: var(--player-soft)"><span class="ic"><svg class="i"><use href="#i-loop"/></svg></span><h4>Environment–player co-development</h4>
-        <p>An iterative loop that jointly refines game environments and player policies through gameplay feedback.</p></div>
-      <div style="--tone: var(--turn); --tint: var(--turn-soft)"><span class="ic"><svg class="i"><use href="#i-data"/></svg></span><h4>Scalable collection &amp; visual policy distillation</h4>
-        <p>Fast code policy rollouts and VLM demonstrations for training a 4B visual agent with progress-weighted SFT.</p></div>
+      <div style="--tone: var(--game); --tint: var(--game-soft)"><span class="ic"><svg class="i"><use href="#i-loop"/></svg></span><h4>Environment–player co-development</h4>
+        <p>Co-develop verifiable game environments and code policies through gameplay feedback, with game-state-based tasks, progress measures, and success checks.</p></div>
+      <div style="--tone: var(--player); --tint: var(--player-soft)"><span class="ic"><svg class="i"><use href="#i-data"/></svg></span><h4>Scalable collection &amp; visual policy distillation</h4>
+        <p>Fast code policy rollouts and VLM demonstrations for training Game2Player-4B and Game2Player-9B with progress-weighted SFT.</p></div>
+      <div style="--tone: var(--turn); --tint: var(--turn-soft)"><span class="ic"><svg class="i"><use href="#i-env"/></svg></span><h4>PlayerBench</h4>
+        <p>50 held-out games and 287 tasks. Game2Player-4B (thinking on) scores 31.1% progress versus 49.5% on GameWorld, indicating a more challenging benchmark for game agents.</p></div>
     </div>
   </div>
 </section>
@@ -124,7 +107,7 @@
 <section class="chapter" id="leaderboard">
   <header class="wrap intro">
     <h2 class="sec">Leaderboard</h2>
-    <div class="method-summary"><p>PlayerBench has 50 games and 287 tasks held out from training. Each model plays every task once, with at most 100 steps. On GameWorld, the other models' results are the ones published with that benchmark, under the same budget of 100 steps. Game2Player models play both benchmarks through our harness.</p></div>
+    <div class="method-summary"><p>PlayerBench comprises 50 held-out games and 287 tasks. We evaluate recent models on PlayerBench using our harness, with one run per task and a budget of 100 steps. For GameWorld, we evaluate our Game2Player models and report other models' results as published by the GameWorld authors, also under a 100-step budget. When both generalist and computer-use results are available for a model, we show the configuration with higher progress and its corresponding success rate.</p></div>
   </header>
   <div class="pin" style="--hold: 55vh">
     <div class="pin-stage"><div class="wrap">
@@ -275,6 +258,23 @@
       </div></div>
       <p class="fig-cap">The Coding Player view shows gameplay, exposed state, and executed policy code. The VLM Player view shows gameplay, screenshot context, reasoning, and actions, including pauses during inference.</p>
     </div></div>
+  </div>
+</section>
+
+<section class="chapter flow" id="dataset">
+  <header class="wrap intro">
+    <h2 class="sec">Training Data Statistics</h2>
+    <div class="method-summary"><p>We collect 15,707 trajectories with 1,563,640 steps and 307 hours of play, from 396 games and 2,251 tasks. The Coding Player contributes 12,856 trajectories and the VLM Player 2,851. Data collection is ongoing, and the dataset continues to grow.</p></div>
+  </header>
+  <div class="wrap">
+      <div class="dash" id="dash">
+        <div class="dpanel"><h4>Genre</h4><div class="dbody" data-k="genre"></div></div>
+        <div class="dpanel"><h4>Engine</h4><div class="dbody" data-k="engine"></div></div>
+        <div class="dpanel"><h4>Players</h4><div class="dbody" data-k="players"></div></div>
+        <div class="dpanel"><h4>Task difficulty</h4><div class="dbody" data-k="difficulty"></div></div>
+        <div class="dpanel"><h4>Trajectory length</h4><div class="dbody" data-k="length"></div></div>
+        <div class="dpanel"><h4>Progress at the end of a trajectory</h4><div class="dbody" data-k="progress"></div></div>
+      </div>
   </div>
 </section>
 

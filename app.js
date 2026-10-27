@@ -69,8 +69,8 @@ function initNav() {
   const menu = $("#section-menu");
   menu.innerHTML = `<option value="top">Overview</option>` + links.map(a => `<option value="${a.dataset.go}">${a.textContent}</option>`).join("");
   menu.addEventListener("change", () => scrollTo({top: target(menu.value), behavior: reduce ? "instant" : "smooth"}));
-  const IDS = ["dataset", "abstract", "contributions", "leaderboard", "loop", "examples", "players", "results", "cite"];
-  const LINK = { dataset: "games" };   // chapters shown under another chapter's link
+  const IDS = ["abstract", "contributions", "leaderboard", "loop", "examples", "players", "dataset", "results", "cite"];
+  const LINK = {};   // chapters shown under another chapter's link
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
   const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + introTravel(intro) * .72 : topOf(document.getElementById(id)) - 24;
