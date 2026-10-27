@@ -56,7 +56,7 @@ body.nav-on .topnav { transform: none; }
 @media (max-width: 1180px) { .topnav .acts { display: none; } }
 
 /* ---------- opening wall, then the games page ---------- */
-#intro { position: relative; height: 330vh; }
+#intro { position: relative; height: 390vh; }
 .stage { position: sticky; top: 0; height: 100vh; overflow: hidden; background: var(--bg); }
 #wall { position: absolute; inset: 0; width: 100%; height: 100%; }
 #wall.over { cursor: pointer; }
@@ -356,7 +356,9 @@ h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
 .ripple { position: absolute; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; border: 3px solid var(--player); pointer-events: none; opacity: 0; }
 .transport { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 8px; }
 .transport button { width: 36px; height: 28px; border: 1px solid var(--rule-2); border-radius: var(--radius); background: #fff; cursor: pointer; font: 12px/1 var(--sans); color: var(--ink); }
-.transport .time { font: 13px var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+/* the clock beside a scrubber: digits of one width (Public Sans) in a box wide enough for
+   "999.9 / 999.9", so the scrubber keeps its length as the time changes */
+.transport .time { min-width: 7.6em; font: 13px "Public Sans", var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; }
 .scrub { height: 28px; border: 1px solid var(--rule-2); border-radius: 4px; cursor: pointer; overflow: hidden; }
 .scrub canvas { width: 100%; height: 100%; }
 .deck { display: flex; gap: 12px; align-items: flex-end; margin-top: 10px; }
@@ -487,13 +489,44 @@ figure { margin: 18px 0 0; min-width: 0; }
 .lb td.n { text-align: right; color: var(--ink-2); }
 .lb td.n.on { color: var(--ink); }
 .lb td.n.on div { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
-.lb td.n.on b { min-width: 2.4em; text-align: right; }
+/* numbers in Public Sans, Libre Franklin's own descendant: as served, Libre Franklin has no digits
+   of one width, so columns of numbers would not line up */
+.lb td.n, .tbl.abl td.r { font-family: "Public Sans", var(--sans); font-variant-numeric: tabular-nums; }
+.lb td.n.on b { flex: none; width: 3.3em; text-align: right; }
+.lb .bar { flex: none; }
 .lb .bar { width: 130px; height: 8px; border-radius: 4px; background: #f0f2f5; overflow: hidden; }
 .lb .bar i { display: block; height: 100%; border-radius: 4px; background: #b8bfcb; }
-.lb tr.ours td { background: #f6f6fd; }
-.lb tr.ours td:first-child { border-radius: 8px 0 0 8px; }
-.lb tr.ours td:last-child { border-radius: 0 8px 8px 0; }
-.lb tr.ours .bar i { background: var(--player); }
+.lb tr.row-ours td { background: #f6f6fd; }
+.lb tr.row-ours td:first-child { border-radius: 8px 0 0 8px; }
+.lb tr.row-ours td:last-child { border-radius: 0 8px 8px 0; }
+.lb tr.row-ours .bar i { background: var(--player); }
+
+/* the training data: six panels in one pinned screen */
+.dash { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 18px 22px;
+  height: calc(100vh - var(--nav) - 22px - 30px); }
+.dpanel { display: flex; flex-direction: column; min-height: 0; padding: 14px 16px 12px; border: 1px solid var(--rule-2); border-radius: var(--radius); background: #fff; }
+.dpanel h4 { margin: 0 0 8px; font: 600 15.5px/1.3 var(--sans); color: var(--ink); }
+.dbody { position: relative; flex: 1; min-height: 0; }
+.dbody svg { position: absolute; inset: 0; }
+svg.chart .dtotal { font: 700 19px var(--sans); fill: var(--ink); }
+svg.chart .dval { font: 600 12.5px var(--sans); fill: var(--ink-2); }
+svg.chart .inbar { font: 600 12.5px var(--sans); fill: #fff; }
+svg.chart .num { font-variant-numeric: tabular-nums; }
+@media (max-width: 1000px) { .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 300px; height: auto; } }
+
+/* two leaderboards side by side, pinned like the examples; a long table scrolls under its fixed header */
+.boards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
+.boards .lb { max-width: none; margin: 0; }
+.boards .lb h3 { margin: 0; padding: 12px 16px 6px; font: 700 19px/1.3 var(--sans); letter-spacing: -.01em; }
+.boards .lb-scroll { overflow-y: auto; }
+.boards .lb thead th { position: sticky; top: 0; z-index: 1; background: #fff; }
+.boards .lb th.sort { width: 150px; }
+.boards .lb td b { display: block; }
+.boards .lb .effort { display: block; margin: 2px 0 0; font-size: 12.5px; }
+.boards .lb .bar { width: 76px; }
+@media (max-width: 1000px) { .boards { grid-template-columns: 1fr; } }
+.trio { display: grid; grid-template-columns: 1.25fr 1fr 1.25fr; gap: 40px; margin-top: 8px; }
+@media (max-width: 860px) { .trio { grid-template-columns: 1fr; } }
 
 /* results: charts drawn as SVG, the ablation table, and the side-by-side players */
 .legend { display: flex; gap: 20px; margin: 12px 0 4px; font: 13.5px/1.3 var(--sans); color: var(--ink-2); }
@@ -553,7 +586,7 @@ svg.chart .v.s-pb { fill: var(--player-ink); } svg.chart .v.s-gw { fill: var(--i
 .cmp-legend b { margin-left: 2px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .cmp-plot { position: relative; flex: 1 1 0; min-height: 120px; cursor: pointer; touch-action: none; }
 .cmp-plot canvas { position: absolute; left: 0; top: 0; }
-.cmp-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font: 13px var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.cmp-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font: 13px "Public Sans", var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .cmp-foot button { width: 36px; height: 28px; border: 1px solid var(--rule-2); border-radius: var(--radius); background: #fff; cursor: pointer; font: 12px/1 var(--sans); color: var(--ink); }
 @media (max-width: 1100px) {
   .cmp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -850,4 +883,11 @@ select {
 }
 @container (min-width: 480px) {
   .board-controls { display: none; }
+}
+@media (max-width: 1100px), (max-height: 760px) {
+  .dash { height: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 300px; }
+  .boards .lb th.sort { width: 82px; }
+}
+@media (max-width: 600px) {
+  .dash { grid-template-columns: minmax(0, 1fr); }
 }

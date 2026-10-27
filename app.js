@@ -41,14 +41,15 @@ function fit(canvas, cssH) {
 const load = p => fetch(p).then(r => r.json());
 initNav();
 initCite();
-Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json", "assets/results.json"].map(load))
-  .then(([tiles, data, stories, policies, results]) => {
-    initIntro(tiles);
+Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json", "assets/results.json", "assets/dataset.json"].map(load))
+  .then(([tiles, data, stories, policies, results, dataset]) => {
+    initIntro(tiles, dataset.totals);
     initBoard(results.leaderboard);
     initLoop(stories, tiles);
     initExamples(data.replays);
     initPlayers(policies);
     document.querySelectorAll(".transport button").forEach(b => b.setAttribute("aria-label", "Play or pause recording"));
+    initDataset(dataset);
     initResults(results);
   });
 
@@ -68,7 +69,8 @@ function initNav() {
   const menu = $("#section-menu");
   menu.innerHTML = `<option value="top">Overview</option>` + links.map(a => `<option value="${a.dataset.go}">${a.textContent}</option>`).join("");
   menu.addEventListener("change", () => scrollTo({top: target(menu.value), behavior: reduce ? "instant" : "smooth"}));
-  const IDS = ["abstract", "contributions", "leaderboard", "loop", "examples", "players", "results", "cite"];
+  const IDS = ["dataset", "abstract", "contributions", "leaderboard", "loop", "examples", "players", "results", "cite"];
+  const LINK = { dataset: "games" };   // chapters shown under another chapter's link
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
   const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + introTravel(intro) * .72 : topOf(document.getElementById(id)) - 24;
@@ -81,7 +83,7 @@ function initNav() {
     const p = clamp(scrollY / introTravel(intro), 0, 1);
     document.body.classList.toggle("nav-on", p > .25);
     let cur = p > .5 ? "games" : null;
-    IDS.forEach(id => { if (document.getElementById(id).getBoundingClientRect().top <= navH() + innerHeight * .3) cur = id; });
+    IDS.forEach(id => { if (document.getElementById(id).getBoundingClientRect().top <= navH() + innerHeight * .3) cur = LINK[id] || id; });
     if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = IDS[IDS.length - 1];
     links.forEach(a => a.classList.toggle("on", a.dataset.go === cur));
     if (document.activeElement !== menu) menu.value = cur || "top";
@@ -92,7 +94,7 @@ function initNav() {
 }
 
 /* ============ opening wall -> games ============ */
-function initIntro(T) {
+function initIntro(T, D) {
   const games = T.games, N = games.length, [TW, TH] = T.tile, COLS = T.cols;
   const canvas = $("#wall"), intro = $("#intro"), head = $("#games-head"), band = $("#title-band");
   const tip = $("#tip"), tipVideo = $("#tip-video");
@@ -120,8 +122,10 @@ function initIntro(T) {
   }
   games.forEach((g, i) => { g.i = i; g.cur = {}; g.zoom = 0; g.vel = 0; g.touched = 0; g.group = { genre: GROUP_OF.genre(g), engine: GROUP_OF.engine(g) }; });
 
-  // the games on the wall and their tasks, counted up from zero each time they come into view
-  const counts = [[N, "games"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks"]];
+  // the games on the wall and their tasks, then the training set made from their play, counted
+  // up from zero each time they come into view
+  const counts = [[N, "games"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks"], [D.trajectories, "trajectories"],
+    [D.steps, "steps"], [Math.round(D.hours), "hours of gameplay"]];
   $("#bignums").innerHTML = counts.map(([n, s]) => `<div><b data-to="${n}">${fmt(n)}</b><span>${s}</span></div>`).join("");
   let counted = false;
   function countUp() {
@@ -1539,27 +1543,153 @@ function initPlayers(index) {
   near($("#players"), () => open(0));   // the first traces are ~1 MB each: fetch them on approach
 }
 
-/* ============ leaderboard ============ */
-// PlayerBench, ranked by the column whose header was clicked; equal scores share a rank.
-function initBoard(rows) {
-  let key = "progress";
-  const root = $(".lb"), metric = $("#board-metric");
-  metric.addEventListener("change", () => { key = metric.value; render(); });
-  function render() {
-    const sorted = [...rows].sort((a, b) => b[key] - a[key] || b.progress - a.progress);
-    let rank = 0;
-    sorted.forEach((r, i) => { if (!i || r[key] !== sorted[i - 1][key]) rank = i + 1; r.rank = rank; });
-    const top = Math.max(...rows.map(r => r[key]));
-    const cell = (r, k) => k === key
-      ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(2)}</b></div></td>`
-      : `<td class="n">${r[k].toFixed(2)}</td>`;
-    root.dataset.metric = key; metric.value = key;
-    $("#board-rows").innerHTML = sorted.map(r => `<tr${r.kind === "ours" ? ' class="ours"' : ""}><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
-      <td><b>${esc(r.name)}</b>${r.thinking ? `<span class="effort">thinking: ${esc(r.thinking)}</span>` : ""}</td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
-    document.querySelectorAll(".lb th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
+/* ============ the training data ============ */
+// Six panels in one pinned screen: what the trajectories come from (genre, engine, player) and
+// what they look like (task difficulty, length, the progress they end with).
+const CODING = role("--player"), VLM = "#e39b2d";
+const PROGRESS = ["#dcefea", "#a3d8cb", "#55b7a4", role("--game")];
+function initDataset(D) {
+  const P = D.players, names = Object.keys(P), tone = { "Coding Player": CODING, "VLM Player": VLM };
+  const pct = (n, total) => (n / total * 100 < 1 ? (n / total * 100).toFixed(1) : Math.round(n / total * 100)) + "%";
+  const legend = (items, y = 12) => { let x = 0, out = ""; items.forEach(([name, color]) => { out += `<rect x="${x}" y="${y - 9}" width="10" height="10" rx="2" fill="${color}"/>` + svgText(x + 15, y, name, "tick"); x += 30 + name.length * 7.2; }); return out; };
+  function donut(w, h, items, colors) {
+    const total = items.reduce((t, [, n]) => t + n, 0), r = Math.min(h / 2 - 4, w * .23), ri = r * .62, cx = r + 4, cy = h / 2;
+    let a0 = -Math.PI / 2, out = "";
+    items.forEach(([name, n]) => {
+      const a1 = a0 + n / total * Math.PI * 2, big = a1 - a0 > Math.PI ? 1 : 0, p = (a, rr) => `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
+      out += `<path d="M${p(a0, r)} A${r},${r} 0 ${big} 1 ${p(a1, r)} L${p(a1, ri)} A${ri},${ri} 0 ${big} 0 ${p(a0, ri)} Z" fill="${colors[name] || INK3}" stroke="#fff" stroke-width="1.5"/>`;
+      a0 = a1;
+    });
+    out += svgText(cx, cy + 2, fmt(total), "dtotal", "middle") + svgText(cx, cy + 20, "trajectories", "tick", "middle");
+    const x0 = 2 * r + 26, row = Math.min(19, (h - 4) / items.length), y0 = (h - row * items.length) / 2 + row * .7;
+    items.forEach(([name, n], i) => {
+      const y = y0 + i * row;
+      out += `<rect x="${x0}" y="${y - 9}" width="10" height="10" rx="2" fill="${colors[name] || INK3}"/>` + svgText(x0 + 16, y, name, "tick")
+        + svgText(w, y, pct(n, total), "tick num", "end");
+    });
+    return out;
   }
-  document.querySelectorAll(".lb th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
-  render();
+  function players(w, h) {
+    const rows = [["Trajectories", "trajectories"], ["Steps", "steps"]], L = 92, bw = w - L, bh = 26;
+    const top = 24 + Math.max(0, (h - 24 - 210) / 2);   // the bars sit in the middle of the space under the legend
+    let out = legend(names.map(n => [n, tone[n]]));
+    rows.forEach(([label, k], i) => {
+      const y = top + i * 66, total = names.reduce((t, n) => t + P[n][k], 0);
+      out += svgText(0, y + bh / 2 + 4, label, "tick");
+      let x = L;
+      names.forEach(n => {
+        const len = P[n][k] / total * bw;
+        out += `<rect x="${x}" y="${y}" width="${Math.max(1, len - 1)}" height="${bh}" rx="3" fill="${tone[n]}"/>`;
+        if (len > 64) out += svgText(x + 8, y + bh / 2 + 4, fmt(P[n][k]), "inbar");
+        else out += svgText(w, y + bh + 16, fmt(P[n][k]), "tick num", "end");
+        x += len;
+      });
+    });
+    const y = top + 2 * 66 + 6;
+    out += svgText(0, y + 12, "Completed", "tick");
+    names.forEach((n, j) => {
+      const rate = P[n].completed / P[n].trajectories, yy = y + j * 20;
+      out += `<rect x="${L}" y="${yy + 2}" width="${bw - 52}" height="12" rx="3" fill="#eef1f4"/><rect x="${L}" y="${yy + 2}" width="${(bw - 52) * rate}" height="12" rx="3" fill="${tone[n]}"/>`
+        + svgText(w, yy + 12, pct(P[n].completed, P[n].trajectories), "tick num", "end");
+    });
+    return out;
+  }
+  function difficulty(w, h) {
+    const items = D.difficulty, colors = ["#3fae8a", "#e2b13c", "#e8803f", "#c9473b"], top = Math.max(...items.map(d => d[1]));
+    const total = items.reduce((t, [, n]) => t + n, 0), T = 22, B = 26, ph = h - T - B, base = T + ph, slot = w / items.length, bw = Math.min(64, slot * .6);
+    let out = "";
+    items.forEach(([name, n], i) => {
+      const mid = (i + .5) * slot, y = base - n / top * ph;
+      out += `<rect x="${mid - bw / 2}" y="${y}" width="${bw}" height="${base - y}" rx="3" fill="${colors[i]}"/>` + svgText(mid, y - 7, pct(n, total), "dval", "middle")
+        + svgText(mid, base + 18, name[0].toUpperCase() + name.slice(1), "tick", "middle");
+    });
+    return out + `<line x1="0" x2="${w}" y1="${base}" y2="${base}" class="grid"/>`;
+  }
+  function length(w, h) {
+    const E = D.length_edges, T = 28, B = 24, L = 4, ph = h - T - B, base = T + ph;
+    const lx = v => L + Math.log10(v) / Math.log10(E[E.length - 1] * 1.6) * (w - L - 4);
+    const shares = names.map(n => P[n].length.map(c => c / P[n].trajectories)), top = Math.max(...shares.flat());
+    let out = legend(names.map(n => [n, tone[n]]));
+    [1, 10, 100, 1000].forEach(v => out += `<line x1="${lx(v)}" x2="${lx(v)}" y1="${T}" y2="${base}" class="grid"/>` + svgText(lx(v), base + 17, fmt(v), "tick", "middle"));
+    out += svgText(w, base + 17, "steps", "tick", "end");
+    names.forEach((n, j) => {
+      const pts = E.map((e, i) => [lx(i < E.length - 1 ? Math.sqrt(e * E[i + 1]) : e * 1.25), base - shares[j][i] / top * (ph - 6)]);
+      // a smooth line through the bin centres that never overshoots them (monotone cubic)
+      const k = pts.length, dx = [], m = [], t = [];
+      for (let i = 0; i < k - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+      for (let i = 0; i < k; i++) t[i] = i === 0 ? m[0] : i === k - 1 ? m[k - 2] : m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+      for (let i = 0; i < k - 1; i++) {
+        if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+        const a = t[i] / m[i], b = t[i + 1] / m[i], q = a * a + b * b;
+        if (q > 9) { t[i] = 3 * a / Math.sqrt(q) * m[i]; t[i + 1] = 3 * b / Math.sqrt(q) * m[i]; }
+      }
+      let d = `M${pts[0][0]},${pts[0][1]}`;
+      for (let i = 0; i < k - 1; i++) d += ` C${pts[i][0] + dx[i] / 3},${pts[i][1] + t[i] * dx[i] / 3} ${pts[i + 1][0] - dx[i] / 3},${pts[i + 1][1] - t[i + 1] * dx[i] / 3} ${pts[i + 1][0]},${pts[i + 1][1]}`;
+      out += `<path d="${d} L${pts[pts.length - 1][0]},${base} L${pts[0][0]},${base} Z" fill="${tone[n]}" opacity=".16"/><path d="${d}" fill="none" stroke="${tone[n]}" stroke-width="2.4"/>`;
+    });
+    return out + `<line x1="0" x2="${w}" y1="${base}" y2="${base}" class="grid"/>`;
+  }
+  function progress(w, h) {
+    const buckets = [["Under 10%", [0]], ["10–49%", [1, 2, 3, 4]], ["50–99%", [5, 6, 7, 8, 9]], ["Complete", [10]]];
+    const L = 104, bw = w - L, bh = 30;
+    const top = 24 + Math.max(0, (h - 24 - 124) / 2);
+    let out = legend(buckets.map(([b], i) => [b, PROGRESS[i]]));
+    names.forEach((n, j) => {
+      const y = top + j * 64, counts = buckets.map(([, bins]) => bins.reduce((t, b) => t + P[n].progress[b], 0)), total = P[n].trajectories;
+      out += svgText(0, y + bh / 2 + 4, n, "tick");
+      let x = L;
+      counts.forEach((c, i) => {
+        const len = c / total * bw;
+        out += `<rect x="${x}" y="${y}" width="${Math.max(0, len - 1)}" height="${bh}" rx="2" fill="${PROGRESS[i]}"/>`;
+        if (len > 38) out += svgText(x + len / 2, y + bh / 2 + 4, pct(c, total), i > 1 ? "inbar" : "dval", "middle");
+        x += len;
+      });
+    });
+    return out;
+  }
+  const draw = {
+    genre: (w, h) => donut(w, h, D.genre, GENRE), engine: (w, h) => donut(w, h, D.engine, ENGINE),
+    players, difficulty, length, progress,
+  };
+  const render = () => document.querySelectorAll("#dash .dbody").forEach(el => {
+    const w = el.clientWidth, h = el.clientHeight;
+    el.innerHTML = `<svg class="chart" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${draw[el.dataset.k](w, h)}</svg>`;
+  });
+  render(); addEventListener("resize", render); document.fonts && document.fonts.ready.then(render);
+}
+
+/* ============ leaderboard ============ */
+// One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
+// share a rank. The longer table scrolls inside a frame as tall as the shorter one.
+function initBoard(boards) {
+  const cards = [...document.querySelectorAll(".lb[data-suite]")];
+  cards.forEach(card => {
+    // PlayerBench shows two decimals; GameWorld's published numbers have one
+    const rows = boards[card.dataset.suite], digits = card.dataset.suite === "GameWorld" ? 1 : 2;
+    let key = "progress";
+    const metric = $(".board-metric", card);
+    metric.addEventListener("change", () => { key = metric.value; render(); });
+    function render() {
+      card.dataset.metric = key; metric.value = key;
+      const sorted = [...rows].sort((a, b) => b[key] - a[key] || b.progress - a.progress);
+      let rank = 0;
+      sorted.forEach((r, i) => { if (!i || r[key] !== sorted[i - 1][key]) rank = i + 1; r.rank = rank; });
+      const top = Math.max(...rows.map(r => r[key]));
+      const cell = (r, k) => k === key
+        ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(digits)}</b></div></td>`
+        : `<td class="n">${r[k].toFixed(digits)}</td>`;
+      $("tbody", card).innerHTML = sorted.map(r => `<tr class="row-${r.kind}"><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
+        <td><b>${esc(r.name)}</b><span class="effort">${esc(r.note)}</span></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
+      card.querySelectorAll("th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
+    }
+    card.querySelectorAll("th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
+    render();
+  });
+  const level = () => {
+    const stage = $(".boards").closest(".pin-stage");
+    cards.forEach(c => { const el = $(".lb-scroll", c); el.style.maxHeight = compactLayout.matches ? "none" : Math.max(240, stage.clientHeight - offsetIn(el, stage) - 34) + "px"; });
+  };
+  level(); addEventListener("resize", level);
 }
 
 /* ============ results ============ */
@@ -1582,7 +1712,7 @@ function initResults(R) {
           const v = g[k][suite][metric], x = mid + side * (bw / 2 + 3) - bw / 2;
           out += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${base - y(v)}" rx="2" class="b-${k}"/>` + svgText(x + bw / 2, y(v) - 7, v.toFixed(1), "v-" + k, "middle");
         });
-        out += svgText(mid, base + 21, g.thinking === "on" ? `${g.size} thinking` : g.size, "cat", "middle");
+        out += svgText(mid, base + 21, g.thinking === "on" ? `${g.size}, thinking on` : g.size, "cat", "middle");
       });
       svg.setAttribute("height", h); svg.innerHTML = out;
     });
