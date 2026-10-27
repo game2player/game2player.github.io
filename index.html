@@ -28,6 +28,7 @@
 <nav class="topnav" id="topnav">
   <div class="wrap">
     <a class="brand name" href="#top" data-go="top"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></a>
+    <select class="compact-control section-menu" id="section-menu" aria-label="Go to section"></select>
     <div class="links" id="nav-links">
       <a href="#games" data-go="games">Games</a><a href="#abstract" data-go="abstract">Abstract</a><a href="#contributions" data-go="contributions">Contributions</a><a href="#leaderboard" data-go="leaderboard">Leaderboard</a><a href="#loop" data-go="loop">Method</a><a href="#examples" data-go="examples">Trajectories</a><a href="#players" data-go="players">Player Comparison</a><a href="#results" data-go="results">Results</a><a href="#cite" data-go="cite">Citation</a>
     </div>
@@ -107,7 +108,8 @@
     <div class="method-summary"><p>PlayerBench has 50 games and 287 tasks held out from training. Each model plays every task once, with at most 100 steps.</p></div>
   </header>
   <div class="wrap">
-    <div class="lb">
+    <div class="lb" data-metric="progress">
+      <div class="compact-control board-controls"><label for="board-metric">Rank by</label><select id="board-metric"><option value="progress">Progress</option><option value="success">Success</option></select></div>
       <table><thead><tr><th class="rk">#</th><th>Model</th><th class="sort" data-k="progress">Progress</th><th class="sort" data-k="success">Success</th></tr></thead>
       <tbody id="board-rows"></tbody></table>
     </div>
@@ -141,6 +143,7 @@
           <button class="node" data-k="data"></button>
         </div>
       </div>
+      <div class="compact-control stage-picker"><label for="stage-picker">Explore stage</label><select id="stage-picker"></select><button type="button" id="show-diagram">Diagram ↑</button></div>
       <div class="loop-panel" id="loop-panel"></div>
     </div></div>
   </div>
@@ -272,7 +275,7 @@
       </div>
       <div>
         <h3>Training data</h3>
-        <div id="ablation"></div>
+        <label class="compact-control suite-picker">Benchmark <select id="ablation-suite"><option value="PlayerBench">PlayerBench</option><option value="GameWorld">GameWorld</option></select></label><div id="ablation" data-suite="PlayerBench"></div>
       </div>
     </div>
 

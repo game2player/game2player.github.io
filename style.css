@@ -772,3 +772,82 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--player); outlin
   .cmp-foot { flex-wrap: wrap; }
   .cmp-foot button { min-width: 44px; min-height: 44px; }
 }
+
+/* Compact views keep navigation and comparisons close to the content. */
+.compact-control { display: none; }
+@media (max-width: 1100px), (max-height: 760px) {
+  :root { --nav: 56px; }
+  .topnav .wrap { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+  .topnav .brand { padding: 0; }
+  .topnav .links { display: none; }
+  .compact-control { display: flex; align-items: center; gap: 8px; }
+  select, .compact-control button { min-height: 44px; border: 1px solid var(--rule-2); border-radius: 6px; padding: 8px 10px; background: white; color: var(--ink); font: 500 13px/1.3 var(--sans); }
+  .section-menu { width: min(52%, 240px); }
+  .stage-picker { margin: 12px 0 0; flex-wrap: wrap; font-size: 13px; }
+  .stage-picker select { flex: 1; min-width: 0; }
+  .stage-picker label { width: 100%; color: var(--ink-2); }
+  .loop-panel { gap: 10px; padding-top: 12px; border-top: 0; }
+  .lp-head h3 { font-size: 18px; }
+  .lp-head p { font-size: 13px; line-height: 1.45; }
+  .loop-panel .board { padding: 10px; }
+  .step-controls { align-items: stretch; gap: 6px; margin-bottom: 10px; }
+  .step-controls button { flex: 1; min-width: 0; padding: 6px; font-size: 12px; }
+  .step-controls button[aria-pressed=true] { background: var(--tint); border-color: var(--tone); }
+  .loop-panel .cards { display: block; }
+  .loop-panel .step-group { display: none; }
+  .loop-panel .step-group.selected { display: block; }
+  .loop-panel .mobile-step-title { display: none; }
+  .loop-panel .cards .card { height: clamp(160px, 30svh, 250px); }
+  .board-controls { justify-content: flex-end; font-size: 13px; }
+  .lb { margin-top: 16px; }
+  .lb table { table-layout: fixed; font-size: 13px; }
+  .lb td { height: 48px; }
+  .lb th, .lb td { padding-left: 6px; padding-right: 6px; }
+  .lb th:first-child { width: 32px; }
+  .lb th.sort { width: 82px; }
+  .lb td:nth-child(2) { white-space: normal; overflow-wrap: anywhere; }
+  .lb .effort { display: block; margin: 2px 0 0; font-size: 11px; }
+  .lb .bar { display: none; }
+  .lb[data-metric=progress] tr > :nth-child(4), .lb[data-metric=success] tr > :nth-child(3) { display: none; }
+  .suite-picker { margin-top: 12px; font-size: 13px; }
+  #ablation .tbl { width: 100%; table-layout: fixed; font-size: 13px; }
+  #ablation .tbl th, #ablation .tbl td { white-space: normal; padding: 8px 4px; }
+  #ablation[data-suite=PlayerBench] tr:first-child > :nth-child(3),
+  #ablation[data-suite=PlayerBench] tr:nth-child(2) > :nth-child(n+3),
+  #ablation[data-suite=PlayerBench] tr:not(:first-child):not(:nth-child(2)):not(.grp) > :nth-child(n+4),
+  #ablation[data-suite=GameWorld] tr:first-child > :nth-child(2),
+  #ablation[data-suite=GameWorld] tr:nth-child(2) > :nth-child(-n+2),
+  #ablation[data-suite=GameWorld] tr:not(:first-child):not(:nth-child(2)):not(.grp) > :nth-child(2),
+  #ablation[data-suite=GameWorld] tr:not(:first-child):not(:nth-child(2)):not(.grp) > :nth-child(3) { display: none; }
+}
+
+/* Consistent compact card alignment and control spacing. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%234b5563' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-size: 16px 16px;
+  background-repeat: no-repeat;
+}
+@media (max-width: 1100px), (max-height: 760px) {
+  select { padding-right: 40px; }
+  .contrib > div { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-content: start; align-items: center; gap: 12px 10px; }
+  .contrib .ic { float: none; margin: 0; }
+  .contrib h4 { margin: 0; }
+  .contrib p { grid-column: 1 / -1; margin: 0; }
+  #who { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  #who button { width: 100%; align-items: center; gap: 6px; padding: 4px 0; }
+  #who button .name { font-size: clamp(16px, 3.5vw, 26px); white-space: nowrap; }
+}
+
+/* Metric visibility follows the leaderboard's width, independently of page height. */
+.lb { container-type: inline-size; }
+@container (min-width: 480px) {
+  .lb[data-metric=progress] tr > :nth-child(4),
+  .lb[data-metric=success] tr > :nth-child(3) { display: table-cell; }
+}
+@container (min-width: 480px) {
+  .board-controls { display: none; }
+}

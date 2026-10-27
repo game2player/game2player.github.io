@@ -65,6 +65,9 @@ function progressIn(pin) {
 function topOf(el) { return el.getBoundingClientRect().top + scrollY - navH(); }
 function initNav() {
   const intro = $("#intro"), links = [...document.querySelectorAll("#nav-links a")];
+  const menu = $("#section-menu");
+  menu.innerHTML = `<option value="top">Overview</option>` + links.map(a => `<option value="${a.dataset.go}">${a.textContent}</option>`).join("");
+  menu.addEventListener("change", () => scrollTo({top: target(menu.value), behavior: reduce ? "instant" : "smooth"}));
   const IDS = ["abstract", "contributions", "leaderboard", "loop", "examples", "players", "results", "cite"];
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
@@ -81,6 +84,7 @@ function initNav() {
     IDS.forEach(id => { if (document.getElementById(id).getBoundingClientRect().top <= navH() + innerHeight * .3) cur = id; });
     if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = IDS[IDS.length - 1];
     links.forEach(a => a.classList.toggle("on", a.dataset.go === cur));
+    if (document.activeElement !== menu) menu.value = cur || "top";
   }
   addEventListener("scroll", onScroll, { passive: true });
   addEventListener("resize", onScroll);
@@ -180,7 +184,8 @@ function initIntro(T) {
     const viewportH = H, dpr = window.devicePixelRatio || 1;
     ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = "high";
     groups = { genre: layoutGroups("genre"), engine: layoutGroups("engine") };
-    H = Math.ceil(Math.max(viewportH, groups.genre.height, groups.engine.height));
+    // Reserve space for the selected grouping, not the taller of both layouts.
+    H = Math.ceil(Math.max(viewportH, groups[group].height));
     if (H > viewportH) {
       stage.style.height = H + "px";
       intro.style.height = H + viewportH * (compactLayout.matches ? 1.3 : 2.3) + "px";
@@ -305,7 +310,7 @@ function initIntro(T) {
     const b = e.target.closest("button"); if (!b || b.dataset.g === group) return;
     document.querySelectorAll("#group-seg button").forEach(x => x.classList.toggle("on", x === b));
     switching = { from: group, t: 0 }; group = b.dataset.g;
-    onScroll();
+    resize();
   });
   canvas.addEventListener("mousemove", e => {
     if (p < .6) return;
@@ -527,7 +532,20 @@ function initLoop(S, T) {
   };
   const ORDER = ["scout", "builder", "env", "policy", "vlm", "reports", "envs", "data"];
   let cur = null, t0 = 0, held = 0, still = 0, video = null, steps = [], round = -1, lastHit = "";
+  let activeStep = 0, stepElapsed = 0, stepLast = 0;
+  function selectStep(i) {
+    activeStep = i; stepElapsed = 0;
+    panel.querySelectorAll("[data-step]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.step === i)));
+    panel.querySelectorAll(".step-group").forEach((el, j) => el.classList.toggle("selected", j === i));
+  }
+  const picker = $("#stage-picker");
+  picker.innerHTML = Object.entries(NAME).map(([k, name]) => `<option value="${k}">${name}</option>`).join("");
+  const revealPanel = () => scrollTo({top: topOf(picker.parentElement) - 8, behavior: reduce ? "instant" : "smooth"});
+  picker.addEventListener("change", () => { held = performance.now() + 30000; show(picker.value); });
+  $("#show-diagram").addEventListener("click", () => scrollTo({top: topOf(cycle) - 8, behavior: reduce ? "instant" : "smooth"}));
   function show(k) {
+    activeStep = 0; stepElapsed = 0; stepLast = 0;
+    picker.value = k;
     cur = k; t0 = performance.now(); texts.length = 0; round = -1;
     cycle.querySelectorAll(".node").forEach(n => { n.classList.toggle("on", n.dataset.k === k); n.setAttribute("aria-pressed", String(n.dataset.k === k)); });
     if (video) video.pause();
@@ -536,8 +554,9 @@ function initLoop(S, T) {
     panel.dataset.k = k;
     panel.innerHTML = `<div class="lp-head"><span class="ic"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span><h3>${NAME[k]}</h3><p>${rich(st.what)}</p></div>
       <div class="board">
+        <div class="compact-control step-controls" role="group" aria-label="Stage steps">${steps.map(([title], i) => `<button type="button" data-step="${i}" aria-pressed="${i === 0}">${i + 1}. ${esc(title)}</button>`).join("")}</div>
         <ol class="rail">${steps.map(([title], i) => `<li><b>${i + 1}</b><span>${esc(title)}</span>${i < 2 ? "<i></i>" : ""}</li>`).join("")}</ol>
-        <div class="cards">${steps.map(([title, html, , cls], i) => `<div class="step-group"><h4 class="mobile-step-title"><b>${i + 1}</b>${esc(title)}</h4><div class="card ${cls || ""}">${html}</div></div>`).join("")}</div>
+        <div class="cards">${steps.map(([title, html, , cls], i) => `<div class="step-group${i === 0 ? " selected" : ""}"><h4 class="mobile-step-title"><b>${i + 1}</b>${esc(title)}</h4><div class="card ${cls || ""}">${html}</div></div>`).join("")}</div>
       </div>`;
     panel.querySelectorAll(".typed").forEach(el => el.dataset.text = texts[+el.dataset.i]);
     video = panel.querySelector("video");
@@ -548,15 +567,20 @@ function initLoop(S, T) {
     }
   }
   cycle.querySelectorAll(".node").forEach(n => {
-    n.addEventListener("mouseenter", () => { if (performance.now() < still) return; held = performance.now() + 15000; if (cur !== n.dataset.k) show(n.dataset.k); });
-    n.addEventListener("click", () => { held = performance.now() + 30000; if (cur !== n.dataset.k) show(n.dataset.k); });
+    n.addEventListener("mouseenter", () => { if (compactLayout.matches || performance.now() < still) return; held = performance.now() + 15000; if (cur !== n.dataset.k) show(n.dataset.k); });
+    n.addEventListener("click", () => { held = performance.now() + 30000; if (cur !== n.dataset.k) show(n.dataset.k); if (compactLayout.matches) revealPanel(); });
+  });
+  panel.addEventListener("click", e => {
+    const button = e.target.closest("[data-step]");
+    if (button) selectStep(+button.dataset.step);
   });
   panel.addEventListener("mouseenter", () => held = performance.now() + 15000);
   // a stage named in the chapter's text: show it, with the figure brought into view; the
   // boxes passing under the pointer on the way do not take over
   document.querySelectorAll("#loop .sname").forEach(m => m.addEventListener("click", () => {
     held = performance.now() + 30000; still = performance.now() + 1500; if (cur !== m.dataset.k) show(m.dataset.k);
-    scrollTo({ top: topOf(cycle.closest(".pin")) + 2, behavior: "smooth" });
+    if (compactLayout.matches) revealPanel();
+    else scrollTo({ top: topOf(cycle.closest(".pin")) + 2, behavior: "smooth" });
   }));
 
   // a chart canvas fills what is left of its card below whatever sits above it
@@ -589,6 +613,15 @@ function initLoop(S, T) {
   }
   function tick(now) {
     if (!cur) return;
+    const delta = stepLast ? Math.min(now - stepLast, 250) : 0;
+    stepLast = now;
+    if (compactLayout.matches && !document.hidden) {
+      const bounds = panel.getBoundingClientRect();
+      if (bounds.top < innerHeight && bounds.bottom > navH()) {
+        stepElapsed += delta;
+        if (stepElapsed >= 2000) selectStep((activeStep + 1) % steps.length);
+      }
+    }
     const st = STORY[cur], t = (now - t0) / 1000;
     // stages that run more than once start over each round, with the next case
     const u = st.cycle ? t % st.cycle : t, r = st.cycle ? Math.floor(t / st.cycle) % st.cases : 0;
@@ -598,7 +631,7 @@ function initLoop(S, T) {
       li.classList.toggle("on", i <= lit); li.classList.toggle("now", i === lit);
       li.classList.toggle("done", i + 1 < steps.length && u >= steps[i + 1][2]);
     });
-    panel.querySelectorAll(".card").forEach((cd, i) => { cd.classList.toggle("in", compactLayout.matches || u >= steps[i][2]); cd.classList.toggle("now", i === lit); });
+    panel.querySelectorAll(".card").forEach((cd, i) => { cd.classList.toggle("in", compactLayout.matches || u >= steps[i][2]); cd.classList.toggle("now", i === (compactLayout.matches ? activeStep : lit)); });
     panel.querySelectorAll(".card [data-at]").forEach(el => el.classList.toggle("in", compactLayout.matches || u >= +el.dataset.at));
     panel.querySelectorAll(".typed").forEach(el => {
       const f = compactLayout.matches ? 1 : clamp((u - +el.dataset.at) / +el.dataset.dur, 0, 1), txt = el.dataset.text || "", n = Math.ceil(txt.length * f);
@@ -1510,6 +1543,8 @@ function initPlayers(index) {
 // PlayerBench, ranked by the column whose header was clicked; equal scores share a rank.
 function initBoard(rows) {
   let key = "progress";
+  const root = $(".lb"), metric = $("#board-metric");
+  metric.addEventListener("change", () => { key = metric.value; render(); });
   function render() {
     const sorted = [...rows].sort((a, b) => b[key] - a[key] || b.progress - a.progress);
     let rank = 0;
@@ -1518,6 +1553,7 @@ function initBoard(rows) {
     const cell = (r, k) => k === key
       ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(2)}</b></div></td>`
       : `<td class="n">${r[k].toFixed(2)}</td>`;
+    root.dataset.metric = key; metric.value = key;
     $("#board-rows").innerHTML = sorted.map(r => `<tr${r.kind === "ours" ? ' class="ours"' : ""}><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
       <td><b>${esc(r.name)}</b>${r.thinking ? `<span class="effort">thinking: ${esc(r.thinking)}</span>` : ""}</td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
     document.querySelectorAll(".lb th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
@@ -1588,7 +1624,11 @@ function initResults(R) {
     const b = e.target.closest("button"); if (!b) return;
     metric = b.dataset.k; document.querySelectorAll("#main-metric button").forEach(x => x.classList.toggle("on", x === b)); bars(+$("#steps").getAttribute("height"));
   });
-  const draw = () => bars(steps());
+  const draw = () => {
+    document.querySelectorAll("#ablation .grp td").forEach(td => td.colSpan = compactLayout.matches ? 3 : 5);
+    bars(steps());
+  };
+  $("#ablation-suite").addEventListener("change", e => { $("#ablation").dataset.suite = e.target.value; draw(); });
   ablation(); draw();
   addEventListener("resize", draw); document.fonts && document.fonts.ready.then(draw);
   initCompare(R.compare);
