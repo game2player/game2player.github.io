@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261027-node-labels">
+<link rel="stylesheet" href="style.css?v=20261027-review">
 </head>
 <body>
 <!-- line icons, drawn like the ones in the loop -->
@@ -45,14 +45,13 @@
     <div class="title-band" id="title-band">
       <h1 class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></h1>
       <p class="sub">Scaling Gameplay Experience for Visual Agents through Environment–Player Co-Development</p>
-      <p class="tldr">We co-develop verifiable game environments with code and visual players, turning their gameplay into training data for visual agents.</p>
+      <p class="tldr">We co-develop verifiable game environments with the Coding Player and VLM Player, turning their gameplay into training data for visual agents.</p>
       <dl class="hero-stats" aria-label="Gameplay training data">
         <div><dt>Games</dt><dd>500+</dd></div>
         <div><dt>Trajectories</dt><dd>~3K</dd></div>
         <div><dt>Steps</dt><dd>1M</dd></div>
         <div><dt>Hours of gameplay</dt><dd>250</dd></div>
       </dl>
-      <p class="collection-note">Collected by code player &amp; visual player</p>
       <p class="people"><span class="tbd-slot">Authors</span></p>
       <ul class="affiliations" aria-label="Author affiliations">
         <li><img class="logo-uiuc" src="assets/affiliations/illinois.svg" alt="University of Illinois Urbana-Champaign" width="156" height="27"></li>
@@ -83,8 +82,8 @@
   <header class="wrap intro"><h2 class="sec">Abstract</h2></header>
   <div class="wrap"><div class="prose">
     <p>Games provide diverse environments for training and evaluating visual agents on perception, planning, and control. Existing efforts often collect agent experience from a small set of games or rely on human gameplay data. <strong>More scalable methods are needed</strong> to collect interaction experience across diverse games, with well-defined tasks and verifiable outcomes, for developing visual agentic intelligence.</p>
-    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; code and visual players attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 500+ games for data collection and construct <strong>PlayerBench</strong>, a held-out benchmark spanning 50 games and over 200 tasks that presents greater challenges than GameWorld.</p>
-    <p>We use instrumented environments, code policies, and VLM teacher players to collect diverse game tasks and trajectories at scale for <strong>visual policy distillation</strong>. We train a 4B VLM agent with <strong>progress-weighted SFT</strong>, assigning greater weight to steps that advance task progress. The agent plays from pixels, achieving scores of <span class="tbd">XX</span> on GameWorld and <span class="tbd">XX</span> on <strong>PlayerBench</strong>.</p>
+    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; the Coding Player and VLM Player attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 500+ games for data collection and construct <strong>PlayerBench</strong>, a held-out benchmark spanning 50 games and over 200 tasks that presents greater challenges than GameWorld.</p>
+    <p>We use instrumented environments, code policies, and VLM Players acting as teachers to collect diverse game tasks and trajectories at scale for <strong>visual policy distillation</strong>. We train a 4B VLM agent with <strong>progress-weighted SFT</strong>, assigning greater weight to steps that advance task progress. The agent plays from pixels, achieving scores of <span class="tbd">XX</span> on GameWorld and <span class="tbd">XX</span> on <strong>PlayerBench</strong>.</p>
   </div></div>
 </section>
 
@@ -108,7 +107,7 @@
     <h2 class="sec">The Game2Player Pipeline</h2>
     <div class="method-summary">
       <p>Each game goes through a loop of agents. The <span class="sname" data-k="scout"></span> selects games based on their source, engine, and access to game state. The <span class="sname" data-k="builder"></span> adapts each game for offline play, exposes game state through <code>game_api.js</code>, and defines verifiable tasks using engine-specific skills for Unity, Flash, or PICO-8.</p>
-      <p>The <span class="sname" data-k="env"></span> is then tested on every task by the <span class="sname" data-k="policy"></span>, which develops code policies using game state, and the <span class="sname" data-k="vlm"></span>, which plays from screenshots. Problems return to the Builder as <span class="sname" data-k="reports"></span>: a key press may have no effect, or a policy may need a state variable that is not yet exposed. The Builder checks the recorded trajectories before repairing the environment or task checks; the players then retry tasks and refine their policies.</p>
+      <p>The <span class="sname" data-k="env"></span> are then tested on every task by the <span class="sname" data-k="policy"></span>, which develops code policies using game state, and the <span class="sname" data-k="vlm"></span>, which plays from screenshots. Problems return to the Builder as <span class="sname" data-k="reports"></span>: a key press may have no effect, or a policy may need a state variable that is not yet exposed. The Builder checks the recorded trajectories before repairing the environment or task checks; the players then retry tasks and refine their policies.</p>
       <p>The loop produces two outputs. Games enter the <span class="sname" data-k="envs"></span> collection after validation through gameplay. We retain gameplay trajectories as <span class="sname" data-k="data"></span>, recording observations, actions, and task progress for visual policy distillation.</p>
       <p class="hint">Click a stage in the figure, or a name above, to explore its role on Pico World Race.</p>
     </div>
@@ -179,7 +178,7 @@
     <h2 class="sec">Comparing Coding Player and VLM Player</h2>
     <div class="prose">
       <p>The <span class="sname" data-k="policy"></span> develops Python code policies that read the game state exposed by the Builder and execute actions in real time. Once written, these policies support fast, repeated rollouts for task validation and scalable trajectory collection.</p>
-      <p>The <span class="sname" data-k="vlm"></span> observes screenshots, reasons about the task, and selects actions without access to internal game state. The game pauses during model inference. VLM teacher players provide visual demonstrations for policy distillation; both player types return feedback to the Builder.</p>
+      <p>The <span class="sname" data-k="vlm"></span> observes screenshots, reasons about the task, and selects actions without access to internal game state. The game pauses during model inference. VLM Players acting as teachers provide visual demonstrations for policy distillation; both player types return feedback to the Builder.</p>
       <p class="hint">Scroll or select a player to compare its observations, decisions, and actions.</p>
     </div>
   </header>
@@ -276,7 +275,7 @@
   title   = {Game2Player: Scaling Gameplay Experience for Visual Agents
              through Environment–Player Co-Development},
   year    = {2026},
-  howpublished = {GitHub repository},
+  howpublished = {GitHub project},
   url     = {https://github.com/game2player}
 }</pre></div>
   </div>
@@ -288,6 +287,6 @@
   </div></div>
 </section>
 <footer class="wrap foot">Game2Player</footer>
-<script src="app.js?v=20261027-node-labels"></script>
+<script src="app.js?v=20261027-review"></script>
 </body>
 </html>

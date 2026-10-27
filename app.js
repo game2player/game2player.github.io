@@ -99,7 +99,7 @@ function initIntro(T) {
   games.forEach((g, i) => { g.i = i; g.cur = {}; g.zoom = 0; g.vel = 0; g.touched = 0; });
 
   // the games on the wall and their tasks, counted up from zero each time they come into view
-  const counts = [[N, "games"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks"]];
+  const counts = [[N, "games shown"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks in shown games"]];
   $("#bignums").innerHTML = counts.map(([n, s]) => `<div><b data-to="${n}">${fmt(n)}</b><span>${s}</span></div>`).join("");
   let counted = false;
   function countUp() {
@@ -1441,7 +1441,7 @@ function initResults() {
 
   // the leaderboard: models ranked, then the policy and people as reference rows
   const MODELS = [["VLM xxx", "Closed VLM"], ["VLM xxx", "Closed VLM"], ["VLM xxx", "Open VLM, xxB"], ["VLM xxx", "Open VLM, xxB"],
-    ["Agent xxx", "Computer-use agent"], ["Ours, xxB", "VLM trained on our episodes"]];
+    ["Agent xxx", "Computer-use agent"], ["Ours, 4B", "Distilled visual agent"]];
   const REF = [["Coding Player", "Policy written by a coding agent"], ["People", "Human players"]];
   const SCORE = ["Progress", "Success", "Cost per solved task"];
   const COLS = { all: SCORE, held: SCORE };
