@@ -29,7 +29,7 @@
   <div class="wrap">
     <a class="brand name" href="#top" data-go="top"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></a>
     <div class="links" id="nav-links">
-      <a href="#games" data-go="games">Games</a><a href="#abstract" data-go="abstract">Abstract</a><a href="#contributions" data-go="contributions">Contributions</a><a href="#loop" data-go="loop">Method</a><a href="#examples" data-go="examples">Trajectories</a><a href="#players" data-go="players">Player Comparison</a><a href="#results" data-go="results">Results</a><a href="#cite" data-go="cite">Citation</a>
+      <a href="#games" data-go="games">Games</a><a href="#abstract" data-go="abstract">Abstract</a><a href="#contributions" data-go="contributions">Contributions</a><a href="#leaderboard" data-go="leaderboard">Leaderboard</a><a href="#loop" data-go="loop">Method</a><a href="#examples" data-go="examples">Trajectories</a><a href="#players" data-go="players">Player Comparison</a><a href="#results" data-go="results">Results</a><a href="#cite" data-go="cite">Citation</a>
     </div>
     <div class="acts">
       <a class="btn sm soon" title="Coming soon" aria-disabled="true"><svg class="i"><use href="#i-paper"/></svg>Paper</a>
@@ -47,7 +47,7 @@
       <p class="sub">Scaling Gameplay Experience for Visual Agents through Environment–Player Co-Development</p>
       <p class="tldr">We co-develop verifiable game environments with the Coding Player and VLM Player, turning their gameplay into training data for visual agents.</p>
       <dl class="hero-stats" aria-label="Gameplay training data">
-        <div><dt>Games</dt><dd>500+</dd></div>
+        <div><dt>Games</dt><dd>550+</dd></div>
         <div><dt>Trajectories</dt><dd>~3K</dd></div>
         <div><dt>Steps</dt><dd>1M</dd></div>
         <div><dt>Hours of gameplay</dt><dd>250</dd></div>
@@ -82,8 +82,8 @@
   <header class="wrap intro"><h2 class="sec">Abstract</h2></header>
   <div class="wrap"><div class="prose">
     <p>Games provide diverse environments for training and evaluating visual agents on perception, planning, and control. Existing efforts often collect agent experience from a small set of games or rely on human gameplay data. <strong>More scalable methods are needed</strong> to collect interaction experience across diverse games, with well-defined tasks and verifiable outcomes, for developing visual agentic intelligence.</p>
-    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; the Coding Player and VLM Player attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 500+ games for data collection and construct <strong>PlayerBench</strong>, a held-out benchmark spanning 50 games and over 200 tasks that presents greater challenges than GameWorld.</p>
-    <p>We use instrumented environments, code policies, and VLM Players acting as teachers to collect diverse game tasks and trajectories at scale for <strong>visual policy distillation</strong>. We train a 4B VLM agent with <strong>progress-weighted SFT</strong>, assigning greater weight to steps that advance task progress. The agent plays from pixels, achieving scores of <span class="tbd">XX</span> on GameWorld and <span class="tbd">XX</span> on <strong>PlayerBench</strong>.</p>
+    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; the Coding Player and VLM Player attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 550+ games for data collection and construct <strong>PlayerBench</strong>, a held-out benchmark spanning 50 games and over 200 tasks that presents greater challenges than GameWorld.</p>
+    <p>We use instrumented environments, code policies, and VLM Players acting as teachers to collect diverse game tasks and trajectories at scale for <strong>visual policy distillation</strong>. We train a 4B VLM agent with <strong>progress-weighted SFT</strong>, assigning greater weight to steps that advance task progress. The agent plays from pixels, achieving progress scores of 49.5 on GameWorld and 31.1 on <strong>PlayerBench</strong> with thinking on, up from 26.9 and 15.9 for the base model.</p>
   </div></div>
 </section>
 
@@ -101,6 +101,19 @@
   </div>
 </section>
 
+<section class="chapter flow" id="leaderboard">
+  <header class="wrap intro">
+    <h2 class="sec">Leaderboard</h2>
+    <p class="lead">PlayerBench has 50 games and 287 tasks held out from training. Each model plays every task once, with at most 100 steps.</p>
+  </header>
+  <div class="wrap">
+    <div class="lb">
+      <table><thead><tr><th class="rk">#</th><th>Model</th><th class="sort" data-k="progress">Progress</th><th class="sort" data-k="success">Success</th></tr></thead>
+      <tbody id="board-rows"></tbody></table>
+    </div>
+  </div>
+</section>
+
 <!-- Each chapter: its introduction scrolls by, then the interactive part below it stays put. -->
 <section class="chapter" id="loop">
   <header class="wrap intro">
@@ -109,7 +122,6 @@
       <p>Each game goes through a loop of agents. The <span class="sname" data-k="scout"></span> selects games based on their source, engine, and access to game state. The <span class="sname" data-k="builder"></span> adapts each game for offline play, exposes game state through <code>game_api.js</code>, and defines verifiable tasks using engine-specific skills for Unity, Flash, or PICO-8.</p>
       <p>The <span class="sname" data-k="env"></span> are then tested on every task by the <span class="sname" data-k="policy"></span>, which develops code policies using game state, and the <span class="sname" data-k="vlm"></span>, which plays from screenshots. Problems return to the Builder as <span class="sname" data-k="reports"></span>: a key press may have no effect, or a policy may need a state variable that is not yet exposed. The Builder checks the recorded trajectories before repairing the environment or task checks; the players then retry tasks and refine their policies.</p>
       <p>The loop produces two outputs. Games enter the <span class="sname" data-k="envs"></span> collection after validation through gameplay. We retain gameplay trajectories as <span class="sname" data-k="data"></span>, recording observations, actions, and task progress for visual policy distillation.</p>
-      <p class="hint">Click a stage in the figure, or a name above, to explore its role on Pico World Race.</p>
     </div>
   </header>
   <div class="pin" style="--hold: 55vh">
@@ -241,29 +253,43 @@
 <section class="chapter flow" id="results">
   <header class="wrap intro">
     <h2 class="sec">Results</h2>
-    <p class="lead">We evaluate task correctness, player performance, and visual policy distillation. Results are pending; <span class="tbd">xxx</span> marks values to be filled in.</p>
+    <p class="lead">We fine-tune Qwen3.5-4B and Qwen3.5-9B on gameplay recorded by Game2Player and test them on PlayerBench, the 50 games held out from training, and on GameWorld, 34 games from another benchmark. Every model plays each task once with the same seed and at most 100 steps. Progress is averaged over a game's tasks and then over games, and success is the share of tasks completed. With thinking on, a model can write up to 32,768 tokens per step, and 512 with it off. The model trained only on Coding Player gameplay is prompted without the short note, as in its training data.</p>
   </header>
   <div class="wrap">
-    <div class="block" id="pipeline">
-      <div class="block-head"><h3>Environment and task quality</h3><span class="soon-tag">Placeholder</span></div>
-      <p class="note">We freeze the pipeline and run it on <span class="tbd">xxx</span> new web games chosen by a rule fixed in advance.</p>
-      <figure class="half"><svg class="skel" data-kind="bars" data-cats="Full loop|Builder alone|Coding agent alone" data-axis="Correct tasks (%)"></svg></figure>
-      <p class="fig-cap">Human-verified task correctness for the full co-development loop, the Builder without player feedback, and a standalone coding agent, using the same games and budget.</p>
-    </div>
-
-    <div class="block" id="leaderboard">
-      <div class="block-head"><h3>Leaderboard</h3><span class="soon-tag">Placeholder</span></div>
-      <p class="note">Every player gets the same harness, step budget and seeds.</p>
-      <div class="tabs lb-tabs" id="lb-tabs"><button class="on" data-v="all">All tasks</button><button data-v="held">PlayerBench</button></div>
-      <div class="lb" id="lb"></div>
-      <p class="fig-cap">Progress measures task completion from game-state checks; success measures the fraction of completed tasks. The Coding Player uses internal game state and is shown as a reference alongside human players.</p>
-    </div>
-
     <div class="block" id="training">
-      <div class="block-head"><h3>Visual policy distillation</h3><span class="soon-tag">Placeholder</span></div>
-      <p class="note">We evaluate a 4B VLM agent distilled from collected gameplay on GameWorld and the held-out PlayerBench.</p>
-      <figure class="half"><svg class="skel" data-kind="groups" data-cats="GameWorld|PlayerBench" data-series="Base|Trained" data-axis="Progress (%)"></svg></figure>
-      <p class="fig-cap">Compare the base 4B VLM with the distilled visual agent on GameWorld and PlayerBench. PlayerBench spans 50 held-out games and over 200 tasks.</p>
+      <div class="block-head"><h3>Training on Game2Player gameplay</h3><div class="seg" id="main-metric"><button data-k="progress" class="on">Progress</button><button data-k="success">Success</button></div></div>
+      <div class="legend"><span><i class="sw base"></i>Qwen3.5 base</span><span><i class="sw ours"></i>Game2Player</span></div>
+      <div class="duo"><svg class="chart" id="main-pb"></svg><svg class="chart" id="main-gw"></svg></div>
+    </div>
+
+    <div class="block duo pair">
+      <div>
+        <h3>Training steps, Game2Player-9B</h3>
+        <div class="legend"><span><i class="sw pb"></i>PlayerBench</span><span><i class="sw gw"></i>GameWorld</span></div>
+        <svg class="chart" id="steps"></svg>
+      </div>
+      <div>
+        <h3>Training data</h3>
+        <div id="ablation"></div>
+      </div>
+    </div>
+
+    <div class="block" id="compare">
+      <div class="block-head"><h3>The same task before and after training</h3></div>
+      <p class="body">Qwen3.5-4B and Game2Player-4B play the same PlayerBench task with the same seed, both with thinking on. Each gets 100 steps.</p>
+      <div class="cmp" id="cmp">
+        <div class="tabs" id="cmp-tabs"></div>
+        <div class="cmp-grid">
+          <div class="cmp-side" data-k="base"></div>
+          <div class="cmp-side" data-k="ours"></div>
+          <div class="cmp-chart">
+            <div class="task"><span>Task prompt</span><p id="cmp-task"></p></div>
+            <div class="cmp-legend" id="cmp-legend"></div>
+            <div class="cmp-plot" id="cmp-plot"><canvas id="cmp-c"></canvas></div>
+            <div class="cmp-foot"><button id="cmp-play">❚❚</button><span id="cmp-time"></span></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>

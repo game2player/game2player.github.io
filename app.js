@@ -3,11 +3,18 @@
 const GENRE = {
   "Action": "#ec9800", "Puzzle": "#2ba0e6", "Platformer": "#0f9d6c", "Shooter": "#e0531a",
   "Strategy": "#2563c9", "Simulation": "#c9619f", "Racing": "#bf9f00", "Adventure": "#7a4cb5",
-  "Card Game": "#9c5a3c", "RPG": "#4a9e22", "Sports": "#12a8b8", "Other": "#8b8f95",
+  "Card": "#9c5a3c", "RPG": "#4a9e22", "Sports": "#12a8b8", "Fighting": "#a61e4d",
+  "Survival": "#6d7a2c", "Arcade": "#e8638c", "Other": "#8b8f95",
 };
 const ENGINE = {
   "Unity WebGL": "#2563c9", "HTML5": "#ec9800", "Flash": "#e0531a", "Godot": "#0f9d6c",
   "PICO-8": "#c9619f", "GameMaker": "#2ba0e6", "Construct": "#7a4cb5", "Other engines": "#8b8f95",
+};
+// The game list's genres and engines, folded into the groups the opening shows: genres with
+// fewer than ten games go to Other, and every HTML5 framework to HTML5.
+const GROUP_OF = {
+  genre: g => GENRE[g.genre] ? g.genre : g.genre === "Card Game" ? "Card" : "Other",
+  engine: g => ENGINE[g.engine] ? g.engine : g.engine.startsWith("HTML5") ? "HTML5" : "Other engines",
 };
 const INK = "#1f2328", INK3 = "#7d8796", RULE = "#e5e7eb", PANEL = "#f7f9fb";
 // The three role colours and their shades live in the stylesheet (:root); drawings read them from there.
@@ -32,13 +39,15 @@ function fit(canvas, cssH) {
 }
 const load = p => fetch(p).then(r => r.json());
 initNav();
-initResults();
-Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json"].map(load))
-  .then(([tiles, data, stories, policies]) => {
+initCite();
+Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json", "assets/results.json"].map(load))
+  .then(([tiles, data, stories, policies, results]) => {
     initIntro(tiles);
+    initBoard(results.leaderboard);
     initLoop(stories, tiles);
     initExamples(data.replays);
     initPlayers(policies);
+    initResults(results);
   });
 
 /* ============ the bar along the top ============ */
@@ -52,7 +61,7 @@ function progressIn(pin) {
 function topOf(el) { return el.getBoundingClientRect().top + scrollY - navH(); }
 function initNav() {
   const intro = $("#intro"), links = [...document.querySelectorAll("#nav-links a")];
-  const IDS = ["abstract", "contributions", "loop", "examples", "players", "results", "cite"];
+  const IDS = ["abstract", "contributions", "leaderboard", "loop", "examples", "players", "results", "cite"];
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
   const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + (intro.offsetHeight - innerHeight) * .72 : topOf(document.getElementById(id)) - 24;
@@ -87,19 +96,24 @@ function initIntro(T) {
   video.play().catch(() => {});
   const poster = new Image(); poster.src = "assets/wall.jpg";
   const copy = document.createElement("canvas"), cctx = copy.getContext("2d");
-  let copied = null, copiedAt = -1;
-  function grab() {
+  // `fresh` says whether a new frame came in since the canvas was last drawn. Copying the whole
+  // atlas is the costliest step of a frame, so it is skipped while the tiles fly (`hold`), and
+  // taken at most every `gap` ms once they are small.
+  let copied = null, copiedAt = -1, copiedWhen = 0, fresh = false;
+  function grab(hold, gap = 0) {
     const src = video.readyState >= 2 ? video : poster.complete && poster.naturalWidth ? poster : null;
-    if (!src || (src === copied && (src === poster || video.currentTime === copiedAt))) return !!copied;
+    const now = performance.now();
+    if (!src || (copied && (hold || now - copiedWhen < gap)) || (src === copied && (src === poster || video.currentTime === copiedAt))) return !!copied;
+    copiedWhen = now;
     const w = src.videoWidth || src.naturalWidth, h = src.videoHeight || src.naturalHeight;
     if (copy.width !== w || copy.height !== h) { copy.width = w; copy.height = h; }
-    cctx.drawImage(src, 0, 0); copied = src; copiedAt = video.currentTime;
+    cctx.drawImage(src, 0, 0); copied = src; copiedAt = video.currentTime; fresh = true;
     return true;
   }
-  games.forEach((g, i) => { g.i = i; g.cur = {}; g.zoom = 0; g.vel = 0; g.touched = 0; });
+  games.forEach((g, i) => { g.i = i; g.cur = {}; g.zoom = 0; g.vel = 0; g.touched = 0; g.group = { genre: GROUP_OF.genre(g), engine: GROUP_OF.engine(g) }; });
 
   // the games on the wall and their tasks, counted up from zero each time they come into view
-  const counts = [[N, "games shown"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks in shown games"]];
+  const counts = [[N, "games"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks"]];
   $("#bignums").innerHTML = counts.map(([n, s]) => `<div><b data-to="${n}">${fmt(n)}</b><span>${s}</span></div>`).join("");
   let counted = false;
   function countUp() {
@@ -112,7 +126,7 @@ function initIntro(T) {
     requestAnimationFrame(step);
   }
 
-  let W, H, ctx, wall, groups, group = "genre", switching = null, hover = -1, p = 0, panX = 0, panY = 0, drift = 0, frozen = null, last = performance.now();
+  let drawnP = -1, W, H, ctx, wall, groups, group = "genre", switching = null, hover = -1, p = 0, panX = 0, panY = 0, drift = 0, frozen = null, last = performance.now();
   // The wall drifts at a constant speed; its heading turns all the way round about every
   // 90 s, swaying a little on the way, so it wanders in every direction without repeating.
   const SPEED = 27.5, heading = t => .47 + t * 2 * Math.PI / 90 + .8 * Math.sin(t * 2 * Math.PI / 37);
@@ -130,16 +144,18 @@ function initIntro(T) {
   }
   function layoutGroups(key) {
     const box = $(".wrap", head).getBoundingClientRect(), top = head.offsetHeight + 22, left = box.left, width = box.width, height = H - top - 20;
-    const buckets = {}; games.forEach(g => (buckets[g[key]] = buckets[g[key]] || []).push(g.i));
-    const names = Object.keys(buckets).sort((a, b) => buckets[b].length - buckets[a].length);
-    for (let tw = 64; tw >= 12; tw--) {
+    const buckets = {}; games.forEach(g => (buckets[g.group[key]] = buckets[g.group[key]] || []).push(g.i));
+    const rest = name => name.startsWith("Other");   // Other and Other engines come last
+    const names = Object.keys(buckets).sort((a, b) => rest(a) - rest(b) || buckets[b].length - buckets[a].length);
+    // The largest tiles that fit; on a screen too small for all of them, the smallest anyway.
+    for (let tw = 64; tw >= 6; tw--) {
       const th = tw * 9 / 16, gap = 3, labelH = 22, pos = [], labels = [];
       let x = 0, y = 0, rowH = 0, ok = true;
       for (const name of names) {
         const n = buckets[name].length, cols = Math.max(3, Math.ceil(Math.sqrt(n * 2.4)));
         const bw = cols * (tw + gap), bh = labelH + Math.ceil(n / cols) * (th + gap);
         if (x + bw > width) { x = 0; y += rowH + 14; rowH = 0; }
-        if (y + bh > height) { ok = false; break; }
+        if (y + bh > height && tw > 6) { ok = false; break; }
         labels.push({ x: left + x, y: top + y + 14, name, n, color: (key === "engine" ? ENGINE : GENRE)[name] || INK3 });
         buckets[name].forEach((gi, k) => pos[gi] = { x: left + x + (k % cols) * (tw + gap), y: top + y + labelH + Math.floor(k / cols) * (th + gap), w: tw });
         x += bw + 30; rowH = Math.max(rowH, bh);
@@ -148,6 +164,7 @@ function initIntro(T) {
     }
   }
   function resize() {
+    drawnP = -1;
     W = canvas.clientWidth; H = canvas.clientHeight;
     const dpr = window.devicePixelRatio || 1; canvas.width = W * dpr; canvas.height = H * dpr;
     ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = "high";
@@ -163,8 +180,12 @@ function initIntro(T) {
     else if (!holding && !frozen) frozen = [panX, panY];
     const [ox, oy] = frozen || [panX, panY];
     const m = ease(clamp((p - .1) / .5, 0, 1)), target = groups[group];
+    const ready = grab((m > 0 && m < 1) || !!switching, m >= 1 ? 80 : 0);
+    // Nothing moves and no new frame: the canvas already shows this moment.
+    const busy = holding || switching || hover >= 0 || p !== drawnP || games.some(g => g.zoom > .003);
+    if (ready && !busy && !fresh) { requestAnimationFrame(draw); return; }
+    fresh = false; drawnP = p;
     ctx.clearRect(0, 0, W, H);
-    const ready = grab();
     const labelAlpha = clamp((p - .55) / .08, 0, 1) * (switching ? Math.abs(1 - 2 * switching.t) : 1);
     if (labelAlpha > 0) {
       ctx.globalAlpha = labelAlpha; ctx.font = "600 14px 'Libre Franklin', sans-serif";
@@ -194,7 +215,7 @@ function initIntro(T) {
       cur.x = ax + (b.x - ax) * m; cur.y = ay + (b.y - ay) * m; cur.w = wall.w + (b.w - wall.w) * m; cur.h = cur.w * 9 / 16;
       if (!ready) continue;
       tile(c.gi, cur.x, cur.y, cur.w);
-      if (m > .98) { ctx.strokeStyle = (group === "engine" ? ENGINE[g.engine] : GENRE[g.genre]) || INK3; ctx.lineWidth = 1; ctx.strokeRect(cur.x + .5, cur.y + .5, cur.w - 1, cur.h - 1); }
+      if (m > .98) { ctx.strokeStyle = (group === "engine" ? ENGINE : GENRE)[g.group[group]] || INK3; ctx.lineWidth = 1; ctx.strokeRect(cur.x + .5, cur.y + .5, cur.w - 1, cur.h - 1); }
     }
     // A hovered tile grows into the preview itself; the ones left behind shrink back more
     // slowly, so a quick sweep leaves a tail behind the pointer. Each zoom follows a
@@ -1409,52 +1430,204 @@ function initPlayers(index) {
   near($("#players"), () => open(0));   // the first traces are ~1 MB each: fetch them on approach
 }
 
-/* ============ results: placeholders until the experiments are done ============ */
-function tbdify(s) { return esc(s).replace(/x{2,}/g, m => `<span class="tbd">${m}</span>`); }
-function initResults() {
-  // A chart's frame with nothing plotted yet: its scale, its categories, and an xxx where each
-  // value will go. Bars stand on the baseline, so no height is implied.
-  function skeleton(svg) {
-    const d = svg.dataset, w = svg.clientWidth, h = svg.clientHeight, cats = d.cats.split("|"), series = d.series ? d.series.split("|") : [null];
-    const L = 34, T = 26, B = 28, pw = w - L, ph = h - T - B, base = T + ph;
-    const COL = ["#9aa3ad", PLAYER];
-    let out = `<text x="0" y="12" class="ax">${esc(d.axis)}</text>`;
-    [0, 25, 50, 75, 100].forEach(v => { const y = base - v / 100 * ph; out += `<line x1="${L}" x2="${w}" y1="${y}" y2="${y}" class="grid"/><text x="${L - 8}" y="${y + 4}" class="tick" text-anchor="end">${v}</text>`; });
-    const slot = pw / cats.length, bw = Math.min(64, (slot - 28) / series.length);
-    cats.forEach((c, i) => {
-      const mid = L + (i + .5) * slot;
-      out += `<text x="${mid}" y="${base + 18}" class="tick" text-anchor="middle">${esc(c)}</text>`;
-      series.forEach((_, j) => {
-        const x = mid + (j - (series.length - 1) / 2) * (bw + 8);
-        out += `<line x1="${x - bw / 2}" x2="${x + bw / 2}" y1="${base}" y2="${base}" class="foot" stroke="${series.length > 1 ? COL[j] : "#9aa3ad"}"/><text x="${x}" y="${base - 10}" class="tbd" text-anchor="middle">xxx</text>`;
+/* ============ leaderboard ============ */
+// PlayerBench, ranked by the column whose header was clicked; equal scores share a rank.
+function initBoard(rows) {
+  let key = "progress";
+  function render() {
+    const sorted = [...rows].sort((a, b) => b[key] - a[key] || b.progress - a.progress);
+    let rank = 0;
+    sorted.forEach((r, i) => { if (!i || r[key] !== sorted[i - 1][key]) rank = i + 1; r.rank = rank; });
+    const top = Math.max(...rows.map(r => r[key]));
+    const cell = (r, k) => k === key
+      ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(1)}</b></div></td>`
+      : `<td class="n">${r[k].toFixed(1)}</td>`;
+    $("#board-rows").innerHTML = sorted.map(r => `<tr${r.kind === "ours" ? ' class="ours"' : ""}><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
+      <td><b>${esc(r.name)}</b><span class="effort">thinking: ${r.thinking}</span></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
+    document.querySelectorAll(".lb th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
+  }
+  document.querySelectorAll(".lb th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
+  render();
+}
+
+/* ============ results ============ */
+const svgText = (x, y, text, cls, anchor = "start") => `<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}">${esc(text)}</text>`;
+const niceTop = v => Math.ceil(v * 1.12 / 10) * 10;
+function initResults(R) {
+  const SUITES = [["PlayerBench", "#main-pb"], ["GameWorld", "#main-gw"]];
+  let metric = "progress";
+  // Base and trained side by side for each model; both panels share one scale.
+  function bars() {
+    const top = niceTop(Math.max(...R.main.flatMap(g => SUITES.map(([s]) => g.ours[s][metric]))));
+    SUITES.forEach(([suite, sel]) => {
+      const svg = $(sel), w = svg.clientWidth, h = 280, L = 34, T = 46, B = 30, ph = h - T - B, base = T + ph;
+      const y = v => base - v / top * ph, slot = (w - L) / R.main.length, bw = Math.min(46, slot * .3);
+      let out = svgText(0, 18, suite, "title");
+      for (let v = 0; v <= top; v += 10) out += `<line x1="${L}" x2="${w}" y1="${y(v)}" y2="${y(v)}" class="grid"/>` + svgText(L - 8, y(v) + 4, v, "tick", "end");
+      R.main.forEach((g, i) => {
+        const mid = L + (i + .5) * slot;
+        [["base", -1], ["ours", 1]].forEach(([k, side]) => {
+          const v = g[k][suite][metric], x = mid + side * (bw / 2 + 3) - bw / 2;
+          out += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${base - y(v)}" rx="2" class="b-${k}"/>` + svgText(x + bw / 2, y(v) - 7, v.toFixed(1), "v-" + k, "middle");
+        });
+        out += svgText(mid, base + 21, g.thinking === "on" ? `${g.size} thinking` : g.size, "cat", "middle");
       });
+      svg.setAttribute("height", h); svg.innerHTML = out;
     });
-    if (series[0]) {
-      let x = w;
-      [...series].reverse().forEach((n, k) => { const j = series.length - 1 - k; x -= n.length * 7 + 34; out += `<line x1="${x}" x2="${x + 14}" y1="8" y2="8" class="foot" stroke="${COL[j]}"/><text x="${x + 20}" y="12" class="tick">${esc(n)}</text>`; });
+  }
+  // The 9B checkpoints: progress on both sets of games against training steps.
+  function steps() {
+    // as tall as the table beside it, so the two end on one line
+    const svg = $("#steps"), table = $("#ablation table");
+    const h = Math.max(200, table.getBoundingClientRect().bottom - svg.getBoundingClientRect().top);
+    const w = svg.clientWidth, L = 34, R_ = 28, T = 16, B = 26, ph = h - T - B, base = T + ph;
+    const pts = R.steps, last = pts[pts.length - 1].step, top = niceTop(Math.max(...pts.flatMap(p => [p.PlayerBench.progress, p.GameWorld.progress])));
+    const x = s => L + 12 + s / last * (w - L - R_ - 12), y = v => base - v / top * ph;
+    let out = "";
+    for (let v = 0; v <= top; v += 10) out += `<line x1="${L}" x2="${w - R_ + 12}" y1="${y(v)}" y2="${y(v)}" class="grid"/>` + svgText(L - 8, y(v) + 4, v, "tick", "end");
+    pts.forEach(p => out += svgText(x(p.step), base + 20, p.step ? fmt(p.step) : "0", "tick", "middle"));
+    [["PlayerBench", "s-pb"], ["GameWorld", "s-gw"]].forEach(([suite, cls]) => {
+      const xy = pts.map(p => [x(p.step), y(p[suite].progress), p[suite].progress]);
+      out += `<polyline points="${xy.map(([a, b]) => `${a},${b}`).join(" ")}" class="line ${cls}"/>`;
+      xy.forEach(([a, b, v]) => out += `<circle cx="${a}" cy="${b}" r="3.5" class="dot ${cls}"/>` + svgText(a, b - 9, v.toFixed(1), "v " + cls, "middle"));
+    });
+    svg.setAttribute("height", h); svg.innerHTML = out;
+  }
+  // The training data ablation: best value of each model size in bold.
+  function ablation() {
+    const cols = [["PlayerBench", "progress"], ["PlayerBench", "success"], ["GameWorld", "progress"], ["GameWorld", "success"]];
+    const sizes = [...new Set(R.ablation.map(r => r.size))];
+    let html = `<table class="tbl abl"><tr><th rowspan="2">Training data</th><th colspan="2" class="c">PlayerBench</th><th colspan="2" class="c">GameWorld</th></tr>
+      <tr>${cols.map(([, m]) => `<th class="r">${m === "progress" ? "Progress" : "Success"}</th>`).join("")}</tr>`;
+    sizes.forEach(size => {
+      const rows = R.ablation.filter(r => r.size === size);
+      const best = cols.map(([s, m]) => Math.max(...rows.map(r => r[s][m])));
+      html += `<tr class="grp"><td colspan="5">Game2Player-${size}</td></tr>` + rows.map(r => `<tr><td>${esc(r.data)}</td>${cols.map(([s, m], j) =>
+        `<td class="r">${r[s][m] === best[j] ? `<b>${r[s][m].toFixed(1)}</b>` : r[s][m].toFixed(1)}</td>`).join("")}</tr>`).join("");
+    });
+    $("#ablation").innerHTML = html + "</table>";
+  }
+  $("#main-metric").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    metric = b.dataset.k; document.querySelectorAll("#main-metric button").forEach(x => x.classList.toggle("on", x === b)); bars();
+  });
+  const draw = () => { bars(); steps(); };
+  ablation(); draw();
+  addEventListener("resize", draw); document.fonts && document.fonts.ready.then(draw);
+  initCompare(R.compare);
+}
+
+/* ============ base and trained, side by side ============ */
+// Both recordings hold game time only, so they share one clock: the longer one plays and the
+// other follows it, holding its last frame once it is over. The chart draws both progress lines.
+const CURSOR = `<svg class="cursor" viewBox="0 0 18 24"><path d="M1 1 L1 19 L5.5 14.5 L8.6 22 L11.6 20.7 L8.6 13.6 L14.5 13.6 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+function initCompare(list) {
+  const root = $("#cmp"), plot = $("#cmp-plot");
+  const sides = [["base", "Qwen3.5-4B"], ["ours", "Game2Player-4B"]].map(([k, name]) => {
+    const el = root.querySelector(`.cmp-side[data-k="${k}"]`);
+    el.innerHTML = `<div class="who"><b>${name}</b><span>thinking: on</span><span class="cur"></span></div>
+      <div class="screen"><video muted playsinline preload="none"></video>${CURSOR}<div class="ripple"></div><span class="live">0%</span><span class="end"></span></div>
+      <div class="deck"><div class="kb"><svg></svg></div><div class="ms"><svg viewBox="0 0 92 150"></svg></div></div>`;
+    return { k, name, video: $("video", el), screen: $(".screen", el), live: $(".live", el), end: $(".end", el), step: $(".cur", el),
+      kb: buildKeyboard($(".kb svg", el)), ms: buildMouse($(".ms svg", el)), pointer: pointerLayer($(".cursor", el), $(".ripple", el)) };
+  });
+  const COLOR = { base: "#8b939e", ours: PLAYER };
+  let cur = null, lead = null, follow = null, visible = false, stopped = false, hold = 0;
+  const total = () => lead.d.duration;
+  // where a side's recording stops: the encoded video can end a few frames before the episode
+  const endOf = s => Math.min(s.d.duration, s.video.duration || Infinity) - .08;
+  const clock = () => clamp(lead.video.currentTime - lead.d.offset, 0, total());
+  $("#cmp-tabs").innerHTML = list.map((c, i) => `<button data-i="${i}">${esc(c.title.replace(/[^\x20-\x7e]/g, "").trim())}</button>`).join("");
+  $("#cmp-tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) open(+b.dataset.i); });
+  function open(i) {
+    cur = list[i]; clearTimeout(hold);
+    document.querySelectorAll("#cmp-tabs button").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
+    $("#cmp-task").textContent = cur.instruction;
+    sides.forEach(s => { s.d = cur[s.k]; setVideo(s.video, s.d.video); });
+    [lead, follow] = cur.ours.duration >= cur.base.duration ? [sides[1], sides[0]] : [sides[0], sides[1]];
+    seek(0);
+  }
+  function seek(t) {
+    clearTimeout(hold);
+    sides.forEach(s => {
+      const end = endOf(s);
+      s.video.currentTime = Math.max(0, Math.min(t, end) + s.d.offset);
+      if (s === follow && t >= end) s.video.pause();
+    });
+    run(); render(t);
+  }
+  function run() {
+    if (visible && !stopped) lead.video.play().catch(() => {}); else sides.forEach(s => s.video.pause());
+    $("#cmp-play").textContent = visible && !stopped ? "❚❚" : "▶";
+  }
+  sides.forEach(s => s.video.addEventListener("ended", () => { if (s === lead) hold = setTimeout(() => seek(0), 1800); }));
+  function tick() {
+    if (cur && lead) {
+      const t = clock(), d = follow.d, end = endOf(follow);
+      if (t < end && !lead.video.paused) {
+        const want = Math.max(0, t + d.offset);
+        if (Math.abs(follow.video.currentTime - want) > .3) follow.video.currentTime = want;
+        if (follow.video.paused && !follow.video.ended) follow.video.play().catch(() => {});
+      } else if (!follow.video.paused) follow.video.pause();
+      render(t);
     }
-    svg.innerHTML = out;
+    if (visible) requestAnimationFrame(tick);
   }
-  const charts = [...document.querySelectorAll("svg.skel")];
-  const draw = () => charts.forEach(skeleton);
-  draw(); addEventListener("resize", draw); document.fonts && document.fonts.ready.then(draw);
-
-  // the leaderboard: models ranked, then the policy and people as reference rows
-  const MODELS = [["VLM xxx", "Closed VLM"], ["VLM xxx", "Closed VLM"], ["VLM xxx", "Open VLM, xxB"], ["VLM xxx", "Open VLM, xxB"],
-    ["Agent xxx", "Computer-use agent"], ["Ours, 4B", "Distilled visual agent"]];
-  const REF = [["Coding Player", "Policy written by a coding agent"], ["People", "Human players"]];
-  const SCORE = ["Progress", "Success", "Cost per solved task"];
-  const COLS = { all: SCORE, held: SCORE };
-  function board(v) {
-    document.querySelectorAll("#lb-tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
-    const cols = COLS[v];
-    const row = ([name, kind], ref, first) => `<tr class="${ref ? "ref" : ""}${first ? " split" : ""}"><td>${tbdify(name)}</td><td class="kind">${tbdify(kind)}</td>${cols.map(() => `<td class="r tbd">xxx</td>`).join("")}</tr>`;
-    $("#lb").innerHTML = `<table class="tbl"><tr><th>Player</th><th>Kind</th>${cols.map(c => `<th class="r">${esc(c)}</th>`).join("")}</tr>`
-      + MODELS.map(m => row(m, false, false)).join("") + REF.map((m, i) => row(m, true, i === 0)).join("") + "</table>";
+  function render(t) {
+    sides.forEach(s => {
+      const d = s.d, tt = Math.min(t, d.duration), over = t >= d.duration - .05;
+      s.live.textContent = Math.round(valueAt(d.progress, tt) * 100) + "%";
+      s.kb.set(new Set(over ? [] : d.keys.filter(([, a, b]) => a <= tt && tt < (b ?? d.duration)).map(([k]) => keyName(k))));
+      s.ms.set(new Set(over ? [] : d.buttons.filter(([, a, b]) => a <= tt && tt < (b ?? d.duration) + .08).map(([b]) => b)));
+      s.pointer(d.pointer, d.buttons, tt);
+      s.screen.classList.toggle("held", over);
+      // the step under way: the last one the model took at or before this moment
+      let k = 0; while (k < d.decisions.length && d.decisions[k] <= tt) k++;
+      s.step.textContent = `Step ${k}/100`;
+      s.end.textContent = d.solved ? `Task complete at ${Math.round(d.duration)} s` : `All ${d.decisions.length} steps used · ${Math.round(d.final * 100)}%`;
+    });
+    $("#cmp-legend").innerHTML = sides.map(s => `<span><i style="background:${COLOR[s.k]}"></i>${s.name}<b>${Math.round(valueAt(s.d.progress, Math.min(t, s.d.duration)) * 100)}%</b></span>`).join("");
+    $("#cmp-time").textContent = `${t.toFixed(1)} / ${total().toFixed(1)} s`;
+    chart(t);
   }
-  $("#lb-tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) board(b.dataset.v); });
-  board("all");
+  const PAD = { l: 44, r: 10, t: 10, b: 24 };
+  function chart(t) {
+    const { ctx, w, h } = fit($("#cmp-c"), plot.clientHeight), pw = w - PAD.l - PAD.r, ph = h - PAD.t - PAD.b, dur = total();
+    const X = v => PAD.l + v / dur * pw, Y = v => PAD.t + ph - v * ph;
+    ctx.font = "12px 'Libre Franklin', sans-serif"; ctx.fillStyle = INK3;
+    [0, .5, 1].forEach(v => { ctx.strokeStyle = RULE; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(PAD.l, Y(v)); ctx.lineTo(w - PAD.r, Y(v)); ctx.stroke();
+      const s = v * 100 + "%"; ctx.fillText(s, PAD.l - 8 - ctx.measureText(s).width, Y(v) + 4); });
+    const stepT = dur > 60 ? 20 : 10;
+    for (let v = 0; v <= dur; v += stepT) { const s = v + " s"; ctx.fillText(s, clamp(X(v) - ctx.measureText(s).width / 2, PAD.l, w - ctx.measureText(s).width), h - 6); }
+    const line = (series, upto, color, width) => {
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); let prev = null;
+      series.forEach(([tt, v]) => { if (tt > upto) return; const x = X(tt); if (prev === null) ctx.moveTo(x, Y(v)); else { ctx.lineTo(x, Y(prev)); ctx.lineTo(x, Y(v)); } prev = v; });
+      if (prev !== null) ctx.lineTo(X(upto), Y(prev));
+      ctx.stroke();
+    };
+    sides.forEach(s => {
+      const d = s.d;
+      line(d.progress, d.duration, s.k === "ours" ? alpha(PLAYER, .25) : "#dde2e8", 2);
+      line(d.progress, Math.min(t, d.duration), COLOR[s.k], s.k === "ours" ? 2.6 : 2);
+      if (t >= d.duration - .05) dot(ctx, X(d.duration), Y(d.final), 4, COLOR[s.k], "#fff");
+    });
+    ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(t), PAD.t); ctx.lineTo(X(t), PAD.t + ph); ctx.stroke();
+  }
+  let dragging = false;
+  const at = e => { const r = plot.getBoundingClientRect(); seek(clamp((e.clientX - r.left - PAD.l) / (r.width - PAD.l - PAD.r), 0, 1) * total()); };
+  plot.addEventListener("pointerdown", e => { dragging = true; plot.setPointerCapture(e.pointerId); at(e); });
+  plot.addEventListener("pointermove", e => dragging && at(e));
+  plot.addEventListener("pointerup", () => dragging = false);
+  $("#cmp-play").addEventListener("click", () => { stopped = !stopped; if (!stopped && lead.video.ended) seek(0); else run(); });
+  new IntersectionObserver(([e]) => {
+    const was = visible; visible = e.isIntersecting;
+    if (visible && !was) { if (!cur) { sides.forEach(s => s.video.preload = "auto"); open(0); } run(); requestAnimationFrame(tick); }
+    else if (!visible) run();
+  }, { threshold: .25 }).observe(root);
+  addEventListener("resize", () => cur && render(clock()));
+}
 
+function initCite() {
   $("#bib-copy").addEventListener("click", () => {
     if (!navigator.clipboard) return;
     navigator.clipboard.writeText($("#bib").textContent).then(() => { $("#bib-copy").textContent = "Copied"; setTimeout(() => $("#bib-copy").textContent = "Copy", 1500); });
