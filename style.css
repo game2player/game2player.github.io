@@ -60,11 +60,10 @@ body.nav-on .topnav { transform: none; }
 .stage { position: sticky; top: 0; height: 100vh; overflow: hidden; background: var(--bg); }
 #wall { position: absolute; inset: 0; width: 100%; height: 100%; }
 #wall.over { cursor: pointer; }
-/* The responsive title card floats over the wall; overflow stays accessible on short screens. */
+/* Tall title cards are revealed by page scrolling before the wall animation starts. */
 .title-band {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(clamp(720px, 60vw, 1040px), calc(100% - 32px));
-  max-height: calc(100svh - 32px); overflow-y: auto;
   pointer-events: auto;
   padding: clamp(20px, 3vh, 38px) clamp(24px, 2.5vw, 48px);
   background: rgba(255, 255, 255, .94); border: 1px solid rgba(255, 255, 255, .65);
@@ -485,6 +484,9 @@ figure { margin: 18px 0 0; min-width: 0; }
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .14); }
 .lb .medal.m1 { background: #e5b12e; } .lb .medal.m2 { background: #a7b1bd; } .lb .medal.m3 { background: #c4874f; }
 .lb td b { font-weight: 600; }
+.lb .model-label { display: flex; align-items: center; gap: 9px; }
+.lb .model-icon { display: block; flex: 0 0 22px; object-fit: contain; }
+.lb .model-copy { min-width: 0; }
 .lb .effort { margin-left: 8px; font-size: 13px; color: var(--ink-3); }
 .lb td.n { text-align: right; color: var(--ink-2); }
 .lb td.n.on { color: var(--ink); }

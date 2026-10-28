@@ -60,7 +60,7 @@ function navH() { return $("#topnav").offsetHeight; }
 const GROUPED = .63;
 // The scroll that takes the opening from 0 to 1. Groups taller than the screen get no hold:
 // their stage lets go at GROUPED and the page scrolls on through them.
-function introTravel(intro) { return Math.max(1, intro.offsetHeight - intro.querySelector(".stage").offsetHeight) / (+intro.dataset.until || 1); }
+function introTravel(intro) { return Math.max(1, intro.offsetHeight - intro.querySelector(".stage").offsetHeight - (+intro.dataset.reading || 0)) / (+intro.dataset.until || 1); }
 // How far the page has scrolled through a pinned chapter's hold, from 0 to 1.
 function progressIn(pin) {
   const span = pin.offsetHeight - pin.firstElementChild.offsetHeight;
@@ -77,14 +77,14 @@ function initNav() {
   const LINK = {};   // chapters shown under another chapter's link
   // the games are the regrouped wall, most of the way through the opening; a chapter lands
   // with a little room between the bar and its heading
-  const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + introTravel(intro) * Math.min(.72, +intro.dataset.until || 1) : topOf(document.getElementById(id)) - 24;
+  const target = id => id === "top" ? 0 : id === "games" ? intro.offsetTop + (+intro.dataset.reading || 0) + introTravel(intro) * Math.min(.72, +intro.dataset.until || 1) : topOf(document.getElementById(id)) - 24;
   document.addEventListener("click", e => {
     const a = e.target.closest("a[data-go], a.soon"); if (!a) return;
     e.preventDefault();
     if (a.dataset.go) scrollTo({ top: target(a.dataset.go), behavior: "smooth" });
   });
   function onScroll() {
-    const p = clamp(scrollY / introTravel(intro), 0, 1);
+    const p = clamp((scrollY - intro.offsetTop - (+intro.dataset.reading || 0)) / introTravel(intro), 0, 1);
     document.body.classList.toggle("nav-on", p > .25);
     let cur = p > .5 ? "games" : null;
     IDS.forEach(id => { if (document.getElementById(id).getBoundingClientRect().top <= navH() + innerHeight * .3) cur = LINK[id] || id; });
@@ -200,7 +200,11 @@ function initIntro(T, D) {
       stage.style.height = H + "px";
       intro.style.height = H + travel * GROUPED + "px"; intro.dataset.until = GROUPED;
     }
-    band.style.top = viewportH / 2 + "px";
+    // Give a tall card its own page-scroll distance, keeping both its top and bottom accessible.
+    const reading = Math.max(0, band.offsetHeight + 32 - viewportH);
+    intro.dataset.reading = reading;
+    if (reading) intro.style.height = intro.offsetHeight + reading + "px";
+    band.style.top = (viewportH + reading) / 2 + "px";
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = "high";
     wall = layoutWall();
@@ -305,9 +309,11 @@ function initIntro(T, D) {
   }
   function onScroll() {
     const span = introTravel(intro);
-    p = clamp(-intro.getBoundingClientRect().top / span, 0, 1);
+    const scrolled = Math.max(0, -intro.getBoundingClientRect().top);
+    const reading = +intro.dataset.reading || 0;
+    p = clamp((scrolled - reading) / span, 0, 1);
     const f = clamp((p - .1) / .15, 0, 1);
-    band.style.opacity = 1 - f; band.style.transform = `translate(-50%, calc(-50% - ${f * 40}px))`;
+    band.style.opacity = 1 - f; band.style.transform = `translate(-50%, calc(-50% - ${Math.min(scrolled, reading) + f * 40}px))`;
     band.style.visibility = f >= 1 ? "hidden" : "";
     head.style.opacity = clamp((p - .5) / .12, 0, 1); head.classList.toggle("live", p > .6);
     if (p > .5 && !counted) { counted = true; countUp(); } else if (p < .45) counted = false;
@@ -1665,6 +1671,17 @@ function initDataset(D) {
 }
 
 /* ============ leaderboard ============ */
+// Model families share a locally served logo across versions and evaluation settings.
+function modelIcon(name) {
+  const families = [
+    [/^Game2Player/i, "game2player"], [/^(GPT|OpenAI)/i, "openai"],
+    [/^Claude/i, "claude"], [/^Qwen/i, "qwen"], [/^DeepSeek/i, "deepseek"],
+    [/^GLM/i, "glm"], [/^Gemini/i, "gemini"], [/^(Seed|UI-TARS)/i, "bytedance"],
+    [/^Kimi/i, "kimi"], [/^Grok/i, "grok"],
+  ];
+  const family = families.find(([pattern]) => pattern.test(name));
+  return family ? `<img class="model-icon" src="assets/logos/models/${family[1]}.svg" width="22" height="22" alt="" aria-hidden="true">` : "";
+}
 // One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
 // share a rank. The longer table scrolls inside a frame as tall as the shorter one.
 function initBoard(boards) {
@@ -1685,7 +1702,7 @@ function initBoard(boards) {
         ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(digits)}</b></div></td>`
         : `<td class="n">${r[k].toFixed(digits)}</td>`;
       $("tbody", card).innerHTML = sorted.map(r => `<tr class="row-${r.kind}"><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
-        <td><b>${esc(r.name)}</b><span class="effort">${esc(r.note)}</span></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
+        <td><div class="model-label">${modelIcon(r.name)}<div class="model-copy"><b>${esc(r.name)}</b><span class="effort">${esc(r.note)}</span></div></div></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
       card.querySelectorAll("th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
     }
     card.querySelectorAll("th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
