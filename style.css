@@ -81,10 +81,10 @@ body.nav-on .topnav { transform: none; }
 .hero-stats > div { display: flex; flex-direction: column; gap: 3px; padding: 0 12px; }
 .hero-stats > div + div { border-left: 1px solid rgba(75, 85, 99, .2); }
 .hero-stats dt { order: 1; font: 500 12px/1.4 var(--sans); color: var(--ink-2); }
-.hero-stats dd { margin: 0; font: 700 clamp(26px, min(2.2vw, 4vh), 36px)/1.1 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--game-ink); }
-.hero-stats > div:nth-child(2) dd { color: var(--player-ink); }
-.hero-stats > div:nth-child(3) dd { color: var(--turn-ink); }
-.hero-stats > div:nth-child(4) dd { color: var(--player-ink); }
+.hero-stats dd { margin: 0; font: 700 clamp(26px, min(2.2vw, 4vh), 36px)/1.1 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--game); }
+.hero-stats > div:nth-child(2) dd { color: var(--player); }
+.hero-stats > div:nth-child(3) dd { color: var(--turn); }
+.hero-stats > div:nth-child(4) dd { color: var(--player); }
 .title-band .people { margin: 14px 0 0; font: 500 14px/1.4 var(--sans); }
 .affiliations { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(16px, 2vw, 32px); list-style: none; padding: 0; margin: 10px auto 0; }
 .affiliations li { display: flex; align-items: center; justify-content: center; min-height: 44px; }
@@ -124,10 +124,15 @@ body.nav-on .topnav { transform: none; }
 }
 .games-head { position: absolute; top: 0; left: 0; right: 0; padding-top: calc(var(--nav) + 24px); opacity: 0; pointer-events: none; }
 .games-head.live .seg { pointer-events: auto; }
+.games-head.live .bignums { pointer-events: auto; }
 .head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; border-top: 1px solid var(--rule); padding-top: 16px; }
 h2.sec { font: 700 32px/1.15 var(--sans); letter-spacing: -.015em; margin: 0; }
-.bignums { display: flex; gap: 8px 56px; margin-top: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
-.bignums b { display: block; font: 700 44px/1 var(--sans); letter-spacing: -.025em; color: var(--game); font-variant-numeric: tabular-nums; }
+.bignums { display: flex; flex-wrap: nowrap; gap: 40px; margin-top: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: thin; }
+.bignums > div { flex: none; white-space: nowrap; }
+.bignums b { display: grid; font: 700 44px/1 "Public Sans", var(--sans); letter-spacing: -.025em; color: var(--game); font-variant-numeric: tabular-nums; }
+/* The hidden final value reserves the complete width throughout the count-up. */
+.bignums b::before { content: attr(data-final); visibility: hidden; grid-area: 1 / 1; }
+.bignums .count-value { grid-area: 1 / 1; font-style: normal; }
 .bignums span { display: block; margin-top: 4px; font: 500 15px/1.3 var(--sans); color: var(--ink-2); }
 .seg { display: inline-flex; border: 1px solid var(--rule-2); border-radius: var(--radius); overflow: hidden; font: 500 13px/1 var(--sans); }
 .seg button { background: #fff; border: 0; padding: 8px 14px; cursor: pointer; color: var(--ink-2); font: inherit; }
@@ -656,6 +661,8 @@ svg.skel .foot { stroke-width: 3; }
 @media (max-width: 1100px), (max-height: 760px) {
   :root { --nav: 84px; }
   .wrap { width: min(var(--max), calc(100% - 32px)); }
+  .bignums { gap: 28px; }
+  .bignums b { font-size: 32px; white-space: nowrap; }
   .desktop-hint { display: none; }
   .compact-hint { display: block; font-size: 14px; color: var(--ink-3); }
   .topnav .wrap { flex-direction: column; align-items: stretch; gap: 0; }
@@ -744,8 +751,9 @@ svg.skel .foot { stroke-width: 3; }
   .contrib { grid-template-columns: minmax(0, 1fr); }
   .head-row { gap: 12px; }
   h2.sec { font-size: 28px; }
-  .bignums { gap: 28px; }
-  .bignums b { font-size: 36px; }
+  .bignums { gap: 24px; }
+  .bignums b { font-size: 28px; }
+  .bignums span { font-size: 13px; }
   .block-head { flex-wrap: wrap; gap: 8px; }
   .turn { grid-template-columns: 24px 52px minmax(0, 1fr); gap: 8px; }
   .turn .th { width: 52px; }
@@ -763,8 +771,7 @@ svg.skel .foot { stroke-width: 3; }
   .games-head .head-row { padding-top: 8px; }
   .games-head h2.sec { font-size: 24px; }
   .bignums { margin-top: 6px; padding-bottom: 8px; }
-  .bignums > div { display: flex; align-items: baseline; gap: 6px; }
-  .bignums b { font-size: 28px; }
+  .bignums b { font-size: clamp(22px, 4vw, 28px); }
   .bignums span { margin-top: 0; font-size: 13px; }
 }
 

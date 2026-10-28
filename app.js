@@ -130,13 +130,17 @@ function initIntro(T, D) {
   // up from zero each time they come into view
   const counts = [[N, "games"], [games.reduce((n, g) => n + (g.tasks || 0), 0), "tasks"], [D.trajectories, "trajectories"],
     [D.steps, "steps"], [Math.round(D.hours), "hours of gameplay"]];
-  $("#bignums").innerHTML = counts.map(([n, s]) => `<div><b data-to="${n}">${fmt(n)}</b><span>${s}</span></div>`).join("");
+  const formatCount = (n, millions) => millions ? `${(n / 1e6).toFixed(2)}M` : fmt(n);
+  $("#bignums").innerHTML = counts.map(([n, s]) => {
+    const final = formatCount(n, s === "steps");
+    return `<div><b data-to="${n}" data-final="${final}"${s === "steps" ? ' data-millions="true"' : ""}><i class="count-value">${final}</i></b><span>${s}</span></div>`;
+  }).join("");
   let counted = false;
   function countUp() {
     const els = [...document.querySelectorAll("#bignums b")], t0 = performance.now();
     const step = now => {
       const f = reduce ? 1 : clamp((now - t0) / 1500, 0, 1), e = 1 - Math.pow(1 - f, 3);
-      els.forEach(b => b.textContent = fmt(Math.round(+b.dataset.to * e)));
+      els.forEach(b => $(".count-value", b).textContent = formatCount(Math.round(+b.dataset.to * e), b.dataset.millions === "true"));
       if (f < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -316,6 +320,7 @@ function initIntro(T, D) {
     band.style.opacity = 1 - f; band.style.transform = `translate(-50%, calc(-50% - ${Math.min(scrolled, reading) + f * 40}px))`;
     band.style.visibility = f >= 1 ? "hidden" : "";
     head.style.opacity = clamp((p - .5) / .12, 0, 1); head.classList.toggle("live", p > .6);
+    $("#bignums").tabIndex = p > .6 ? 0 : -1;
     if (p > .5 && !counted) { counted = true; countUp(); } else if (p < .45) counted = false;
     if (p < .6 && hover >= 0) leave();
   }
