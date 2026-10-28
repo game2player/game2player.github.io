@@ -920,12 +920,10 @@ select {
 }
 
 .title-band .people { max-width: 58em; margin-left: auto; margin-right: auto; line-height: 1.7; text-wrap: balance; }
-.title-band .people .author { white-space: nowrap; }
+.title-band .people .author { display: inline-block; white-space: nowrap; margin-inline: 2px; }
 
 /* Keep names, contribution credit, and contact information visually distinct. */
 .title-band .people { margin-top: 18px; font-size: 14px; line-height: 1.65; }
-.author-row { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 16px; row-gap: 2px; }
-.author-row + .author-row { margin-top: 4px; }
 .author sup { font-size: 10px; margin-left: 2px; }
 .title-band .author-note { margin: 7px 0 0; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
 .title-band .author-contact { display: flex; justify-content: center; flex-wrap: wrap; gap: 2px 12px; margin: 3px 0 12px; font-size: 12px; line-height: 1.6; color: var(--ink-2); }
@@ -933,7 +931,6 @@ select {
 .author-contact a:hover { text-decoration: underline; }
 @media (max-width: 600px) {
   .title-band .people { font-size: 13px; }
-  .author-row { column-gap: 12px; }
 }
 
 /* Compact author details and a single affiliation row on desktop. */
@@ -950,12 +947,10 @@ select {
   .affiliations li { flex: 0 0 auto; }
 }
 
-/* Text affiliation preview with two balanced author rows. */
+/* Balance the full author list across the available width. */
 .title-band .people { font-size: 13px; }
-.author-row { column-gap: 12px; }
 .affiliation-names { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; list-style: none; margin: 12px 0 0; padding: 0; color: var(--ink-2); font: 500 13px/1.6 var(--sans); }
 .affiliation-names li { white-space: nowrap; }
-@media (min-width: 701px) { .author-row { flex-wrap: nowrap; } }
 
 .affiliation-names sup { font-size: 10px; line-height: 0; vertical-align: super; }
 
