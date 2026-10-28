@@ -1641,7 +1641,7 @@ function initDataset(D) {
   }
   function players(w, h) {
     const rows = [["Trajectories", "trajectories"], ["Steps", "steps"]], L = 92, bw = w - L, bh = 26;
-    const top = 24 + Math.max(0, (h - 24 - 210) / 2);   // the bars sit in the middle of the space under the legend
+    const top = 24 + Math.max(0, (h - 24 - 214) / 2);   // the bars sit in the middle of the space under the legend
     let out = legend(names.map(n => [n, tone[n]]));
     rows.forEach(([label, k], i) => {
       const y = top + i * 66, total = names.reduce((t, n) => t + P[n][k], 0);
@@ -1655,12 +1655,16 @@ function initDataset(D) {
         x += len;
       });
     });
-    const y = top + 2 * 66 + 6;
-    out += svgText(0, y + 12, "Completed", "tick");
-    names.forEach((n, j) => {
-      const rate = P[n].completed / P[n].trajectories, yy = y + j * 20;
-      out += `<rect x="${L}" y="${yy + 2}" width="${bw - 52}" height="12" rx="3" fill="#eef1f4"/><rect x="${L}" y="${yy + 2}" width="${(bw - 52) * rate}" height="12" rx="3" fill="${tone[n]}"/>`
-        + svgText(w, yy + 12, pct(P[n].completed, P[n].trajectories), "tick num", "end");
+    // success and the progress a trajectory ends with, the two players side by side on each row
+    const half = (bw - 12) / 2, track = half - 44;
+    [["Success", "completed"], ["Progress", "progress_sum"]].forEach(([label, k], i) => {
+      const y = top + 2 * 66 + 6 + i * 22;
+      out += svgText(0, y + 12, label, "tick");
+      names.forEach((n, j) => {
+        const x = L + j * (half + 12);
+        out += `<rect x="${x}" y="${y + 2}" width="${track}" height="12" rx="3" fill="#eef1f4"/><rect x="${x}" y="${y + 2}" width="${track * P[n][k] / P[n].trajectories}" height="12" rx="3" fill="${tone[n]}"/>`
+          + svgText(x + half, y + 12, pct(P[n][k], P[n].trajectories), "tick num", "end");
+      });
     });
     return out;
   }
