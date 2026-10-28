@@ -1748,7 +1748,7 @@ function modelIcon(name) {
 // share a rank. The longer table scrolls inside a frame as tall as the shorter one.
 // A GameWorld entry names the harness it was played through, in that harness's color.
 // Keep full harness names; show mobile interface details only when every note fits.
-const HARNESS = { gameworld: "GameWorld harness", vista: "VISTA harness", ours: "our harness" };
+const HARNESS = { gameworld: "GameWorld harness", ours: "our harness" };
 const boardNote = r => r.harness
   ? `<span class="harness h-${r.harness}">${HARNESS[r.harness]}</span>`
     + (r.note ? `<span class="${r.harness === "gameworld" ? "harness-interface" : ""}"> · ${esc(r.note)}</span>` : "")

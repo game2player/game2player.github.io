@@ -539,7 +539,7 @@ svg.chart .num { font-variant-numeric: tabular-nums; }
 .boards .lb .bar { width: 76px; }
 /* GameWorld entries name their harness in its own color */
 .lb .harness { font-weight: 600; }
-.lb .h-gameworld { color: var(--ink-2); } .lb .h-vista { color: var(--game); } .lb .h-ours { color: var(--player); }
+.lb .h-gameworld { color: var(--ink-2); } .lb .h-ours { color: var(--player); }
 /* PlayerBench says once, beside its title, that every entry plays through the same harness */
 .lb-same { margin-left: 12px; font: 400 14px/1.3 var(--sans); letter-spacing: 0; color: var(--ink-2); }
 @media (max-width: 1000px) { .boards { grid-template-columns: 1fr; } }
