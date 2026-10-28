@@ -1742,8 +1742,7 @@ function modelIcon(name) {
 }
 // One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
 // share a rank. The longer table scrolls inside a frame as tall as the shorter one.
-// A GameWorld entry names the harness it was played through, in that harness's color, and a
-// result taken from another paper carries the number of its footnote under the table.
+// A GameWorld entry names the harness it was played through, in that harness's color.
 // A phone shows the short name and leaves out GameWorld's interface (generalist or computer-use),
 // so each entry stays on two lines.
 const HARNESS = { gameworld: ["GameWorld harness", "GameWorld"], vista: ["VISTA harness", "VISTA"], ours: ["our harness", "ours"] };
@@ -1769,7 +1768,7 @@ function initBoard(boards) {
         ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(digits)}</b></div></td>`
         : `<td class="n">${r[k].toFixed(digits)}</td>`;
       $("tbody", card).innerHTML = sorted.map(r => `<tr class="row-${r.kind}"><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
-        <td><div class="model-label">${modelIcon(r.name)}<div class="model-copy"><b>${esc(r.name)}${r.ref ? `<sup>${r.ref}</sup>` : ""}</b><span class="effort">${boardNote(r)}</span></div></div></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
+        <td><div class="model-label">${modelIcon(r.name)}<div class="model-copy"><b>${esc(r.name)}</b><span class="effort">${boardNote(r)}</span></div></div></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
       card.querySelectorAll("th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
     }
     card.querySelectorAll("th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
@@ -1777,10 +1776,7 @@ function initBoard(boards) {
   });
   const level = () => {
     const stage = $(".boards").closest(".pin-stage");
-    cards.forEach(c => {
-      const el = $(".lb-scroll", c), note = $(".lb-note", c);
-      el.style.maxHeight = compactLayout.matches ? "none" : Math.max(240, stage.clientHeight - offsetIn(el, stage) - 34 - (note ? note.offsetHeight : 0)) + "px";
-    });
+    cards.forEach(c => { const el = $(".lb-scroll", c); el.style.maxHeight = compactLayout.matches ? "none" : Math.max(240, stage.clientHeight - offsetIn(el, stage) - 34) + "px"; });
   };
   level(); addEventListener("resize", level);
 }
