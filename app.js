@@ -563,7 +563,14 @@ function initLoop(S, T) {
   picker.innerHTML = Object.entries(NAME).map(([k, name]) => `<option value="${k}">${name}</option>`).join("");
   const revealPanel = () => scrollTo({top: topOf(picker.parentElement) - 8, behavior: reduce ? "instant" : "smooth"});
   picker.addEventListener("change", () => { held = performance.now() + 30000; show(picker.value); });
-  $("#show-diagram").addEventListener("click", () => scrollTo({top: topOf(cycle) - 8, behavior: reduce ? "instant" : "smooth"}));
+  $("#show-diagram").addEventListener("click", () => {
+    const box = $("#cycle-box"), selected = cycle.querySelector(".node.on");
+    if (compactLayout.matches && selected) {
+      const r = selected.getBoundingClientRect(), frame = box.getBoundingClientRect();
+      box.scrollTo({left: box.scrollLeft + r.left - frame.left + r.width / 2 - box.clientWidth / 2, behavior: reduce ? "instant" : "smooth"});
+    }
+    scrollTo({top: topOf(box) - 8, behavior: reduce ? "instant" : "smooth"});
+  });
   function show(k) {
     activeStep = 0; stepElapsed = 0; stepLast = 0;
     picker.value = k;
@@ -698,34 +705,6 @@ function initLoop(S, T) {
   }
   const ENVS = shelf(2, 54, 40, 2, "game"), DATA = shelf(1, 114, 17, 4, "player");
   const HEAP_W = ENVS.w;
-  function mobileFlow() {
-    const svg = $("#mobile-flow");
-    if (!compactLayout.matches) return;
-    const bounds = cycle.getBoundingClientRect();
-    const box = el => {
-      const r = el.getBoundingClientRect();
-      return { x: r.left - bounds.left, y: r.top - bounds.top, w: r.width, h: r.height, cx: r.left - bounds.left + r.width / 2 };
-    };
-    const [scout, builder, env, policy, vlm, reports, envs, data] = ["scout", "builder", "env", "policy", "vlm", "reports", "envs", "data"].map(k => box(node(k)));
-    svg.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`);
-    const path = (d, tone, arrow = true) => `<path d="${d}" class="flow-${tone}"${arrow ? ` marker-end="url(#flow-arrow-${tone})"` : ""}/>`;
-    const down = (a, b, tone) => path(`M${a.cx},${a.y + a.h}V${b.y - 3}`, tone);
-    const builderGroup = box($("#bgroup"));
-    const split = env.y + env.h + 14;
-    const merge = policy.y + policy.h + 20;
-    svg.innerHTML = `<defs>${["game", "player", "turn"].map(tone => `<marker id="flow-arrow-${tone}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="arrow-${tone}" d="M0 0L8 4L0 8Z"/></marker>`).join("")}</defs>`
-      + down(scout, builder, "game") + down(builderGroup, env, "game")
-      + path(`M${env.cx},${env.y + env.h}V${split}`, "game", false)
-      + [policy, vlm].map(p => path(`M${env.cx},${split}H${p.cx}V${p.y - 3}`, "game")).join("")
-      + [policy, vlm].map(p => path(`M${p.cx},${p.y + p.h}V${merge}`, "player", false)).join("")
-      + path(`M${policy.cx},${merge}H${vlm.cx}`, "player", false)
-      + path(`M${reports.cx},${merge}V${reports.y - 3}`, "turn")
-      + path(`M${vlm.cx},${merge}H${bounds.width - 8}V${envs.y - 18}H${envs.cx}`, "player", false)
-      + path(`M${envs.cx},${envs.y - 18}V${envs.y - 3}`, "game")
-      + path(`M${data.cx},${envs.y - 18}V${data.y - 3}`, "player")
-      + path(`M${reports.x},${reports.y + reports.h / 2}H7V${builder.y + builder.h / 2}H${builder.x - 3}`, "turn")
-      + `<text class="repair-label" transform="translate(17 ${(builder.y + reports.y) / 2}) rotate(-90)" text-anchor="middle">repair</text>`;
-  }
   function layout() {
     const box = $("#cycle-box"), stage = cycle.closest(".pin-stage");
     // the single stages share one size (set in the stylesheet); the two frames, the Builder
@@ -791,7 +770,6 @@ function initLoop(S, T) {
     const arc = (a0, a1) => Array.from({ length: 160 }, (_, i) => { const a = (a0 + (a1 - a0) * i / 159) * Math.PI / 180; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
     G.paths = { feed: line([sx, cy], [cx - R, cy]), top: arc(180, 360), back: arc(0, 180),
       ship: line([cx + R, cy], ...up, [dx, cy - OY]), rec: line([cx + R, cy], ...down, [dx, cy + OY]) };
-    mobileFlow();
   }
   // rows are numbered for good (`base` is the number of the top one kept), so a card flying
   // to its slot keeps its target while the rows slide under it
@@ -965,9 +943,8 @@ function initLoop(S, T) {
   let running = false, last = 0, clock = 0, spawnIn = 0;
   function frame(now) {
     if (!running) return;
-    // The mobile stage picker has no animated diagram to draw.
-    if (compactLayout.matches) {
-      if (now - last >= 100) { last = now; tick(now); }
+    // Keep the full diagram on phones, with a lower frame rate for the wide canvas.
+    if (compactLayout.matches && now - last < 1000 / 30) {
       requestAnimationFrame(frame); return;
     }
     const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
@@ -1685,7 +1662,7 @@ function modelIcon(name) {
     [/^Kimi/i, "kimi"], [/^Grok/i, "grok"],
   ];
   const family = families.find(([pattern]) => pattern.test(name));
-  return family ? `<img class="model-icon" src="assets/logos/models/${family[1]}.svg" width="22" height="22" alt="" aria-hidden="true">` : "";
+  return family ? `<img class="model-icon" src="assets/logos/models/${family[1]}.svg${family[1] === "game2player" ? "?v=2" : ""}" width="22" height="22" alt="" aria-hidden="true">` : "";
 }
 // One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
 // share a rank. The longer table scrolls inside a frame as tall as the shorter one.
@@ -1722,6 +1699,9 @@ function initBoard(boards) {
 
 /* ============ results ============ */
 const svgText = (x, y, text, cls, anchor = "start") => `<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}">${esc(text)}</text>`;
+const benchmarkTitle = (x, y, suite) => suite === "PlayerBench"
+  ? `<text x="${x}" y="${y}" class="title playerbench"><tspan class="pb-player">Player</tspan><tspan>Bench</tspan></text>`
+  : `<a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">${svgText(x, y, suite, "title")}</a>`;
 const niceTop = v => Math.ceil(v * 1.12 / 10) * 10;
 function initResults(R) {
   const SUITES = [["PlayerBench", "#main-pb"], ["GameWorld", "#main-gw"]];
@@ -1732,7 +1712,7 @@ function initResults(R) {
     SUITES.forEach(([suite, sel]) => {
       const svg = $(sel), w = svg.clientWidth, L = 34, T = 46, B = 30, ph = h - T - B, base = T + ph;
       const y = v => base - v / top * ph, slot = (w - L) / R.main.length, bw = Math.min(46, slot * .3);
-      let out = svgText(0, 18, suite, "title");
+      let out = benchmarkTitle(0, 18, suite);
       for (let v = 0; v <= top; v += 10) out += `<line x1="${L}" x2="${w}" y1="${y(v)}" y2="${y(v)}" class="grid"/>` + svgText(L - 8, y(v) + 4, v, "tick", "end");
       R.main.forEach((g, i) => {
         const mid = L + (i + .5) * slot;
@@ -1755,7 +1735,7 @@ function initResults(R) {
     const sizes = Object.entries(R.steps), all = sizes.flatMap(([, pts]) => pts);
     const last = Math.max(...all.map(p => p.step)), top = niceTop(Math.max(...all.map(p => p.PlayerBench.progress)));
     const x = s => L + 12 + s / last * (w - L - R_ - 12), y = v => base - v / top * ph;
-    let out = svgText(0, 18, "PlayerBench", "title");
+    let out = benchmarkTitle(0, 18, "PlayerBench");
     const taken = [];
     for (let v = 0; v <= top; v += 10) {
       out += `<line x1="${L}" x2="${w - R_ + 12}" y1="${y(v)}" y2="${y(v)}" class="grid"/>` + svgText(L - 8, y(v) + 4, v, "tick", "end");
@@ -1787,7 +1767,7 @@ function initResults(R) {
   function ablation() {
     const cols = [["PlayerBench", "progress"], ["PlayerBench", "success"], ["GameWorld", "progress"], ["GameWorld", "success"]];
     const sizes = [...new Set(R.ablation.map(r => r.size))];
-    let html = `<table class="tbl abl"><tr><th rowspan="2">Training data</th><th colspan="2" class="c">PlayerBench</th><th colspan="2" class="c">GameWorld</th></tr>
+    let html = `<table class="tbl abl"><tr><th rowspan="2">Training data</th><th colspan="2" class="c"><span class="playerbench"><span class="pb-player">Player</span>Bench</span></th><th colspan="2" class="c"><a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a></th></tr>
       <tr>${cols.map(([, m]) => `<th class="r">${m === "progress" ? "Progress" : "Success"}</th>`).join("")}</tr>`;
     sizes.forEach(size => {
       const rows = R.ablation.filter(r => r.size === size);

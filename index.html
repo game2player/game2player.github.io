@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Game2Player: Scaling Gameplay Experience for Visual Agents through Environment–Player Co-Development</title>
+<link rel="icon" type="image/svg+xml" href="assets/logos/models/game2player.svg?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=Libre+Franklin:wght@400;500;600;700&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261028-match-hero-colors">
+<link rel="stylesheet" href="style.css?v=20261028-scrollable-diagram">
 </head>
 <body>
 <!-- line icons, drawn like the ones in the loop -->
@@ -86,8 +87,8 @@
   <header class="wrap intro"><h2 class="sec">Abstract</h2></header>
   <div class="wrap"><div class="prose">
     <p>Games provide diverse environments for training and evaluating visual agents on perception, planning, and control. Existing efforts often collect agent experience from a small set of games or rely on human gameplay data. <strong>More scalable methods are needed</strong> to collect interaction experience across diverse games, with well-defined tasks and verifiable outcomes, for developing visual agentic intelligence.</p>
-    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; the Coding Player and VLM Player attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 568 games for data collection and construct <strong>PlayerBench</strong>, a held-out benchmark spanning 50 games and 287 tasks that presents greater challenges than GameWorld.</p>
-    <p>We use instrumented environments, code policies, and VLM Players acting as teachers to collect diverse game tasks and trajectories at scale for <strong>visual policy distillation</strong>. We train a 4B VLM agent with <strong>progress-weighted SFT</strong>, assigning greater weight to steps that advance task progress. The agent plays from pixels, achieving progress scores of 49.5 on GameWorld and 31.1 on <strong>PlayerBench</strong> with thinking on, up from 26.9 and 15.9 for the base model.</p>
+    <p>We introduce <span class="name"><span class="g">Game</span><span class="n">2</span><span class="p">Player</span></span>, a pipeline that <strong>co-develops game environments and players</strong>. A Builder adapts web games and defines tasks grounded in game state; the Coding Player and VLM Player attempt these tasks and report problems for repair. Using this pipeline, we build a growing collection of verifiable environments covering 568 games for data collection and construct <strong class="playerbench"><span class="pb-player">Player</span>Bench</strong>, a held-out benchmark spanning 50 games and 287 tasks that presents greater challenges than <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a>.</p>
+    <p>We use instrumented environments, code policies, and VLM Players acting as teachers to collect diverse game tasks and trajectories at scale for <strong>visual policy distillation</strong>. We train a 4B VLM agent with <strong>progress-weighted SFT</strong>, assigning greater weight to steps that advance task progress. The agent plays from pixels, achieving progress scores of 49.5 on <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a> and 31.1 on <strong><span class="playerbench"><span class="pb-player">Player</span>Bench</span></strong> with thinking on, up from 26.9 and 15.9 for the base model.</p>
   </div></div>
 </section>
 
@@ -99,8 +100,8 @@
         <p>Co-develop verifiable game environments and code policies through gameplay feedback, with game-state-based tasks, progress measures, and success checks.</p></div>
       <div style="--tone: var(--player); --tint: var(--player-soft)"><span class="ic"><svg class="i"><use href="#i-data"/></svg></span><h4>Scalable collection &amp; visual policy distillation</h4>
         <p>Fast code policy rollouts and VLM demonstrations for training Game2Player-4B and Game2Player-9B with progress-weighted SFT.</p></div>
-      <div style="--tone: var(--turn); --tint: var(--turn-soft)"><span class="ic"><svg class="i"><use href="#i-env"/></svg></span><h4>PlayerBench</h4>
-        <p>50 held-out games and 287 tasks. Game2Player-4B (thinking on) scores 31.1% progress versus 49.5% on GameWorld, indicating a more challenging benchmark for game agents.</p></div>
+      <div style="--tone: var(--turn); --tint: var(--turn-soft)"><span class="ic"><svg class="i"><use href="#i-env"/></svg></span><h4><span class="playerbench"><span class="pb-player">Player</span>Bench</span></h4>
+        <p>50 held-out games and 287 tasks. Game2Player-4B (thinking on) scores 31.1% progress versus 49.5% on <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a>, indicating a more challenging benchmark for game agents.</p></div>
     </div>
   </div>
 </section>
@@ -108,15 +109,15 @@
 <section class="chapter" id="leaderboard">
   <header class="wrap intro">
     <h2 class="sec">Leaderboard</h2>
-    <div class="method-summary"><p>PlayerBench comprises 50 held-out games and 287 tasks. We evaluate recent models on PlayerBench using our harness, with one run per task and a budget of 100 steps. For GameWorld, we evaluate our Game2Player models and report other models' results as published by the GameWorld authors, also under a 100-step budget. When both generalist and computer-use results are available for a model, we show the configuration with higher progress and its corresponding success rate.</p></div>
+    <div class="method-summary"><p><span class="playerbench"><span class="pb-player">Player</span>Bench</span> comprises 50 held-out games and 287 tasks. We evaluate recent models on <span class="playerbench"><span class="pb-player">Player</span>Bench</span> using our harness, with one run per task and a budget of 100 steps. For <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a>, we evaluate our Game2Player models and report other models' results as published by the <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a> authors, also under a 100-step budget. When both generalist and computer-use results are available for a model, we show the configuration with higher progress and its corresponding success rate.</p></div>
   </header>
   <div class="pin" style="--hold: 55vh">
     <div class="pin-stage"><div class="wrap">
     <div class="boards">
-      <div class="lb" data-suite="PlayerBench" data-metric="progress"><h3>PlayerBench</h3><label class="compact-control board-controls">Rank by<select class="board-metric"><option value="progress">Progress</option><option value="success">Success</option></select></label><div class="lb-scroll">
+      <div class="lb" data-suite="PlayerBench" data-metric="progress"><h3><span class="playerbench"><span class="pb-player">Player</span>Bench</span></h3><label class="compact-control board-controls">Rank by<select class="board-metric"><option value="progress">Progress</option><option value="success">Success</option></select></label><div class="lb-scroll">
         <table><thead><tr><th class="rk">#</th><th>Model</th><th class="sort" data-k="progress">Progress</th><th class="sort" data-k="success">Success</th></tr></thead><tbody></tbody></table>
       </div></div>
-      <div class="lb" data-suite="GameWorld" data-metric="progress"><h3>GameWorld</h3><label class="compact-control board-controls">Rank by<select class="board-metric"><option value="progress">Progress</option><option value="success">Success</option></select></label><div class="lb-scroll">
+      <div class="lb" data-suite="GameWorld" data-metric="progress"><h3><a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a></h3><label class="compact-control board-controls">Rank by<select class="board-metric"><option value="progress">Progress</option><option value="success">Success</option></select></label><div class="lb-scroll">
         <table><thead><tr><th class="rk">#</th><th>Model</th><th class="sort" data-k="progress">Progress</th><th class="sort" data-k="success">Success</th></tr></thead><tbody></tbody></table>
       </div></div>
     </div>
@@ -136,10 +137,9 @@
   </header>
   <div class="pin" style="--hold: 55vh">
     <div class="pin-stage"><div class="wrap">
-      <p class="compact-hint">Tap a stage to explore it. Reports return to the Builder for repair; play is saved as Data.</p>
-      <div class="cycle-box" id="cycle-box" role="region" aria-label="Agent loop diagram">
+      <p class="compact-hint" id="cycle-hint">Swipe or scroll horizontally to explore the diagram ↔. Tap a stage for details.</p>
+      <div class="cycle-box" id="cycle-box" role="region" aria-label="Agent loop diagram" aria-describedby="cycle-hint" tabindex="0">
         <div class="cycle" id="cycle">
-          <svg class="mobile-flow" id="mobile-flow" aria-hidden="true"></svg>
           <canvas id="cycle-fx"></canvas>
           <div class="logos" id="logos"></div>
           <button class="node" data-k="scout"></button>
@@ -283,7 +283,7 @@
 <section class="chapter flow" id="results">
   <header class="wrap intro">
     <h2 class="sec">Results</h2>
-    <div class="method-summary"><p>We fine-tune Qwen3.5-4B and Qwen3.5-9B on gameplay recorded by Game2Player and test them on PlayerBench, the 50 games held out from training, and on GameWorld, 34 games from another benchmark. Every model plays each task once with the same seed and at most 100 steps. Progress is averaged over a game's tasks and then over games, and success is the share of tasks completed. With thinking on, a model can write up to 32,768 tokens per step, and 512 with it off. The model trained only on Coding Player gameplay is prompted without the short note, as in its training data.</p></div>
+    <div class="method-summary"><p>We fine-tune Qwen3.5-4B and Qwen3.5-9B on gameplay recorded by Game2Player and test them on <span class="playerbench"><span class="pb-player">Player</span>Bench</span>, the 50 games held out from training, and on <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a>, 34 games from another benchmark. Every model plays each task once with the same seed and at most 100 steps. Progress is averaged over a game's tasks and then over games, and success is the share of tasks completed. With thinking on, a model can write up to 32,768 tokens per step, and 512 with it off. The model trained only on Coding Player gameplay is prompted without the short note, as in its training data.</p></div>
   </header>
   <div class="wrap">
     <div class="block" id="training">
@@ -306,7 +306,7 @@
 
     <div class="block" id="compare">
       <div class="block-head"><h3>Game2Player-4B vs. Base Model</h3></div>
-      <p class="note">Qwen3.5-4B and Game2Player-4B play the same PlayerBench task with the same seed, both with thinking on. Each gets 100 steps. In our harness a step can tap a key, hold keys for a chosen time, or chain a few timed key presses. Qwen3.5-4B almost never sets a hold time: only 1% of its key presses carry one. Game2Player-4B learned to, and sets one on 47% of them.</p>
+      <p class="note">Qwen3.5-4B and Game2Player-4B play the same <span class="playerbench"><span class="pb-player">Player</span>Bench</span> task with the same seed, both with thinking on. Each gets 100 steps. In our harness a step can tap a key, hold keys for a chosen time, or chain a few timed key presses. Qwen3.5-4B almost never sets a hold time: only 1% of its key presses carry one. Game2Player-4B learned to, and sets one on 47% of them.</p>
       <div class="cmp" id="cmp">
         <div class="tabs" id="cmp-tabs"></div>
         <div class="cmp-grid">
@@ -357,6 +357,6 @@
   </div></div>
 </section>
 <footer class="wrap foot">Game2Player</footer>
-<script src="app.js?v=20261028-stable-counts"></script>
+<script src="app.js?v=20261028-scrollable-diagram"></script>
 </body>
 </html>

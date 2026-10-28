@@ -21,6 +21,8 @@
   --nav: 52px;
 }
 * { box-sizing: border-box; }
+/* Keep mobile browsers from enlarging individual text blocks after rotation. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
 img, video, canvas, svg { display: block; }
 .wrap { width: min(var(--max), 100% - 64px); margin: 0 auto; }
@@ -47,6 +49,10 @@ body.nav-on .topnav { transform: none; }
 .brand { font: 700 16px/1 var(--sans); letter-spacing: -.01em; color: var(--ink); text-decoration: none; }
 /* the name in its three colours */
 .name .g { color: var(--game); } .name .n { color: var(--turn); } .name .p { color: var(--player); }
+.playerbench { color: var(--ink); font-weight: 700; white-space: nowrap; }
+.playerbench .pb-player { color: var(--player); fill: var(--player); }
+.benchmark-link { color: inherit; text-decoration: underline; text-decoration-color: var(--rule-2); text-underline-offset: .16em; }
+.benchmark-link:hover { color: var(--player); text-decoration-color: currentColor; }
 .topnav .links { flex: 1; display: flex; justify-content: center; gap: 22px; height: 100%; }
 .topnav .links a { display: flex; align-items: center; border-bottom: 2px solid transparent; padding-top: 2px;
   font: 500 14px/1 var(--sans); color: var(--ink-3); text-decoration: none; white-space: nowrap; transition: color .15s; }
@@ -656,7 +662,7 @@ svg.skel .foot { stroke-width: 3; }
 
 /* Compact screens keep content in document flow and turn the loop into a stage grid. */
 .compact-hint { display: none; }
-.mobile-flow, .mobile-step-title { display: none; }
+.mobile-step-title { display: none; }
 .step-group { display: contents; }
 @media (max-width: 1100px), (max-height: 760px) {
   :root { --nav: 84px; }
@@ -691,20 +697,8 @@ svg.skel .foot { stroke-width: 3; }
   .signals p { font-size: 13px; line-height: 1.5; }
   .pin { height: auto; }
   .pin-stage { position: relative; top: auto; height: auto; overflow: visible; padding-top: 14px; }
-  .cycle-box { height: auto !important; margin-bottom: 14px; }
-  .cycle { position: relative; left: auto; width: 100% !important; height: auto !important; transform: none !important;
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px 12px; padding: 8px 28px; max-width: 560px; margin: 0 auto; }
-  #cycle-fx, .cycle .logos { display: none; }
-  .cycle .node { position: relative; left: auto !important; top: auto !important; transform: none; width: 100%; height: 52px; grid-template-columns: 34px minmax(0, 1fr); font-size: 14px; }
-  .cycle .node .ic svg { width: 18px; height: 18px; }
-  .cycle > .node[data-k=scout], .cycle > .node[data-k=builder], .cycle > .node[data-k=env] { grid-column: 1 / -1; width: 65%; justify-self: center; }
-  .cycle .pgroup { position: relative; left: auto !important; top: auto !important; transform: none; grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 6px; margin-bottom: 12px; }
-  .cycle .pgroup .node { font-size: 13px; grid-template-columns: 28px minmax(0, 1fr); }
-  .mobile-flow { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-  .mobile-flow > path { fill: none; stroke-width: 1.6; stroke-linejoin: round; }
-  .flow-game { stroke: var(--game); } .flow-player { stroke: var(--player); } .flow-turn { stroke: var(--turn); }
-  .arrow-game { fill: var(--game); } .arrow-player { fill: var(--player); } .arrow-turn { fill: var(--turn); }
-  .repair-label { fill: var(--turn-ink); font: 11px var(--sans); }
+  .cycle-box { overflow-x: auto; overflow-y: hidden; margin-bottom: 14px; border: 1px solid var(--rule); border-radius: 8px; scrollbar-width: thin; }
+  .cycle { left: 0; transform-origin: 0 0; }
   .loop-panel { height: auto; grid-template-columns: minmax(0, 1fr); gap: 12px; overflow: visible; padding-top: 14px; }
   .lp-head .ic { float: left; width: 34px; height: 34px; margin: 0 10px 6px 0; }
   .lp-head h3 { font-size: 19px; margin-bottom: 4px; }
@@ -778,7 +772,6 @@ svg.skel .foot { stroke-width: 3; }
 /* Keep readable controls and content at intermediate sizes as well as on phones. */
 button:focus-visible, a:focus-visible { outline: 3px solid var(--player); outline-offset: 3px; }
 @media (max-width: 1100px), (max-height: 760px) {
-  .cycle .node { white-space: normal; line-height: 1.25; }
   .loop-panel .lp-head { max-width: 680px; }
   .track { align-items: start; }
   .face[inert] { visibility: hidden; height: 0; overflow: hidden; }
@@ -789,21 +782,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--player); outlin
   .mobile-step-title { min-height: 40px; }
 }
 @media (max-width: 380px) {
-  .cycle { padding-inline: 24px 4px; gap: 36px 8px; }
-  .cycle .pgroup { gap: 6px; padding: 5px; }
-  .cycle .pgroup .node { grid-template-columns: 24px minmax(0, 1fr); font-size: 12px; }
   .who { gap: 12px; }
   .tag { font-size: 10px; padding-inline: 6px; }
 }
 
 /* The current pipeline includes Builder skills and two distinct outputs. */
 @media (max-width: 1100px), (max-height: 760px) {
-  .cycle .bgroup { width: 80%; justify-self: center; grid-template-columns: minmax(0, 1fr); margin-bottom: 0; }
-  .cycle .bgroup .node { font-size: 14px; grid-template-columns: 34px minmax(0, 1fr); }
-  .cycle .skills { grid-template-columns: 40px minmax(0, 1fr); height: auto; min-height: 56px; }
-  .cycle .skills > div { padding: 8px; }
-  .cycle > .node[data-k=reports] { grid-column: 1 / -1; width: 65%; justify-self: center; }
-  .cycle .node-label { min-width: 0; white-space: normal; }
   .title-band .affil { flex-wrap: wrap; justify-content: center; }
   .method-summary p, #results .note { font-size: 15px; line-height: 1.6; }
 }
