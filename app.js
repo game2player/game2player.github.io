@@ -39,20 +39,52 @@ function fit(canvas, cssH) {
   const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
   return { ctx, w, h };
 }
-const load = p => fetch(p).then(r => r.json());
+const dataLoads = new Map();
+const load = p => {
+  if (!dataLoads.has(p)) dataLoads.set(p, fetch(p).then(r => {
+    if (!r.ok) throw new Error(`Could not load ${p}: ${r.status}`);
+    return r.json();
+  }).catch(error => { dataLoads.delete(p); throw error; }));
+  return dataLoads.get(p);
+};
+const STAGES = initStageNames();
 initNav();
 initCite();
-Promise.all(["assets/tiles.json", "assets/data.json", "assets/stories.json", "assets/policy/index.json", "assets/results.json", "assets/dataset.json"].map(load))
-  .then(([tiles, data, stories, policies, results, dataset]) => {
-    initIntro(tiles, dataset.totals);
-    initBoard(results.leaderboard);
-    initLoop(stories, tiles);
-    initExamples(data.replays);
-    initPlayers(policies);
-    document.querySelectorAll(".transport button").forEach(b => b.setAttribute("aria-label", "Play or pause recording"));
-    initDataset(dataset);
-    initResults(results);
-  });
+const introData = Promise.all(["assets/tiles.json", "assets/dataset.json"].map(load));
+introData.then(([tiles, dataset]) => initIntro(tiles, dataset.totals));
+// Build each interactive chapter shortly before it enters view, rather than blocking
+// the opening animation with hidden players, charts, and their data requests.
+function lazyChapter(id, init) {
+  const section = document.getElementById(id);
+  const observer = new IntersectionObserver(entries => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    observer.disconnect();
+    Promise.resolve().then(init).catch(error => { console.error(error); observer.observe(section); });
+  }, { rootMargin: "100% 0px" });
+  observer.observe(section);
+}
+lazyChapter("leaderboard", async () => initBoard((await load("assets/results.json")).leaderboard));
+lazyChapter("loop", async () => {
+  const [stories, [tiles]] = await Promise.all([load("assets/stories.json"), introData]);
+  initLoop(stories, tiles);
+});
+lazyChapter("examples", async () => initExamples((await load("assets/data.json")).replays));
+lazyChapter("players", async () => initPlayers(await load("assets/policy/index.json")));
+lazyChapter("dataset", async () => initDataset(await load("assets/dataset.json")));
+lazyChapter("results", async () => initResults(await load("assets/results.json")));
+document.querySelectorAll(".transport button").forEach(b => b.setAttribute("aria-label", "Play or pause recording"));
+
+function observeAnimation(el, start, stop) {
+  let inView = false, active = false;
+  const sync = () => {
+    const next = inView && !document.hidden;
+    if (next === active) return;
+    active = next;
+    if (active) start(); else stop();
+  };
+  new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; sync(); }).observe(el);
+  document.addEventListener("visibilitychange", sync);
+}
 
 /* ============ the bar along the top ============ */
 function navH() { return $("#topnav").offsetHeight; }
@@ -102,26 +134,48 @@ function initIntro(T, D) {
   const games = T.games, N = games.length, [TW, TH] = T.tile, COLS = T.cols;
   const canvas = $("#wall"), intro = $("#intro"), head = $("#games-head"), band = $("#title-band");
   const tip = $("#tip"), tipVideo = $("#tip-video");
+  // Browser chrome changes innerHeight during a swipe. Measure the stable CSS viewport
+  // so those events do not reset the title, canvas, and tile layout mid-transition.
+  const viewportProbe = document.createElement("div");
+  viewportProbe.style.cssText = "position:fixed;top:0;width:0;visibility:hidden;pointer-events:none";
+  viewportProbe.setAttribute("aria-hidden", "true");
+  intro.append(viewportProbe);
   // One atlas video holds every game; each tile shows its own cell of it. Each new video
   // frame is copied once into `copy` and the tiles are cut from that copy: cutting them from
   // the video itself makes Firefox fetch the whole frame again for every tile.
   const video = Object.assign(document.createElement("video"), { muted: true, loop: true, playsInline: true, autoplay: true });
-  setVideo(video, "assets/wall.mp4");
-  video.play().catch(() => {});
-  const poster = new Image(); poster.src = "assets/wall.jpg";
+  // Phones keep live gameplay with a 1080p, 12-fps atlas instead of decoding 4K.
+  const animatedAtlas = !reduce;
+  let atlasStarted = false;
+  function playAtlas() {
+    if (!animatedAtlas) return;
+    if (!atlasStarted) {
+      atlasStarted = true;
+      if (touch.matches) video.src = "assets/wall-mobile.mp4";
+      else setVideo(video, "assets/wall.mp4");
+    }
+    video.play().catch(() => {});
+  }
+  const poster = new Image();
+  // Show a lightweight poster first so video downloads cannot delay the first tiles.
+  poster.addEventListener("load", () => { if (running) playAtlas(); });
+  poster.addEventListener("error", () => { if (running) playAtlas(); });
+  poster.src = touch.matches ? "assets/wall-mobile.webp" : "assets/wall.webp";
   const copy = document.createElement("canvas"), cctx = copy.getContext("2d");
   // `fresh` says whether a new frame came in since the canvas was last drawn. Copying the whole
   // atlas is the costliest step of a frame, so it is skipped while the tiles fly (`hold`), and
   // taken at most every `gap` ms once they are small.
   let copied = null, copiedAt = -1, copiedWhen = 0, fresh = false;
   function grab(hold, gap = 0) {
-    const src = video.readyState >= 2 ? video : poster.complete && poster.naturalWidth ? poster : null;
+    const src = animatedAtlas && video.readyState >= 2 ? video : poster.complete && poster.naturalWidth ? poster : null;
     const now = performance.now();
     if (!src || (copied && (hold || now - copiedWhen < gap)) || (src === copied && (src === poster || video.currentTime === copiedAt))) return !!copied;
     copiedWhen = now;
-    const w = src.videoWidth || src.naturalWidth, h = src.videoHeight || src.naturalHeight;
+    const sourceW = src.videoWidth || src.naturalWidth, sourceH = src.videoHeight || src.naturalHeight;
+    const scale = touch.matches ? Math.min(1, 1920 / sourceW) : 1;
+    const w = Math.round(sourceW * scale), h = Math.round(sourceH * scale);
     if (copy.width !== w || copy.height !== h) { copy.width = w; copy.height = h; }
-    cctx.drawImage(src, 0, 0); copied = src; copiedAt = video.currentTime; fresh = true;
+    cctx.drawImage(src, 0, 0, w, h); copied = src; copiedAt = video.currentTime; fresh = true;
     return true;
   }
   games.forEach((g, i) => { g.i = i; g.cur = {}; g.zoom = 0; g.vel = 0; g.touched = 0; g.group = { genre: GROUP_OF.genre(g), engine: GROUP_OF.engine(g) }; });
@@ -190,13 +244,18 @@ function initIntro(T, D) {
       }
     }
   }
-  function resize() {
+  let layoutViewportH = 0;
+  function resize(event) {
+    viewportProbe.style.height = compactLayout.matches ? "100svh" : "100vh";
+    const stableH = viewportProbe.offsetHeight;
+    if (event?.type === "resize" && W === canvas.clientWidth && layoutViewportH === stableH) return;
+    layoutViewportH = stableH;
     drawnP = -1;
     const stage = intro.querySelector(".stage");
     stage.style.height = ""; intro.style.height = ""; delete intro.dataset.until;
     W = canvas.clientWidth; H = stage.clientHeight;
-    const viewportH = H, travel = intro.offsetHeight - viewportH, dpr = window.devicePixelRatio || 1;
-    ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = "high";
+    const viewportH = H, travel = intro.offsetHeight - viewportH;
+    ctx = canvas.getContext("2d"); ctx.imageSmoothingQuality = "high";
     groups = { genre: layoutGroups("genre"), engine: layoutGroups("engine") };
     // Reserve space for the selected grouping, not the taller of both layouts.
     H = Math.ceil(Math.max(viewportH, groups[group].height));
@@ -209,15 +268,19 @@ function initIntro(T, D) {
     intro.dataset.reading = reading;
     if (reading) intro.style.height = intro.offsetHeight + reading + "px";
     band.style.top = (viewportH + reading) / 2 + "px";
+    // Bound the backing store on high-DPI phones, especially for tall game groups.
+    const dpr = Math.min(window.devicePixelRatio || 1, touch.matches ? 1.5 : 2, 8192 / H, Math.sqrt(4e6 / (W * H)));
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingQuality = "high";
     wall = layoutWall();
     onScroll();
   }
   const wrap = (v, span) => ((v % span) + span) % span;
-  let running = false;
+  let running = false, drawFrame = 0, viewTop = 0, viewBottom = 0, drawnViewTop = -1, drawnViewBottom = -1;
+  const nextDraw = () => { drawFrame = requestAnimationFrame(draw); };
   function draw(now) {
     if (!running) return;
+    if (touch.matches && now - last < 1000 / 30) { nextDraw(); return; }
     const dt = Math.min(.1, (now - last) / 1000); last = now;
     const holding = p <= .1;
     if (holding && !reduce) { drift += dt; const a = heading(drift); panX += Math.cos(a) * SPEED * dt; panY += Math.sin(a) * SPEED * dt; frozen = null; }
@@ -225,11 +288,18 @@ function initIntro(T, D) {
     const [ox, oy] = frozen || [panX, panY];
     const m = ease(clamp((p - .1) / .5, 0, 1)), target = groups[group];
     const ready = grab((m > 0 && m < 1) || !!switching, m >= 1 ? 80 : 0);
+    const bounds = canvas.getBoundingClientRect();
+    viewTop = Math.max(0, -bounds.top);
+    viewBottom = Math.min(H, innerHeight - bounds.top);
     // Nothing moves and no new frame: the canvas already shows this moment.
-    const busy = holding || switching || hover >= 0 || p !== drawnP || games.some(g => g.zoom > .003);
-    if (ready && !busy && !fresh) { requestAnimationFrame(draw); return; }
+    const busy = holding || switching || hover >= 0 || p !== drawnP || viewTop !== drawnViewTop || viewBottom !== drawnViewBottom || games.some(g => g.zoom > .003);
+    if (ready && !busy && !fresh) { nextDraw(); return; }
     fresh = false; drawnP = p;
-    ctx.clearRect(0, 0, W, H);
+    drawnViewTop = viewTop; drawnViewBottom = viewBottom;
+    // A phone's full game grid is much taller than its screen. Paint only the visible
+    // strip, including on scroll, instead of redrawing hundreds of hidden thumbnails.
+    ctx.save(); ctx.beginPath(); ctx.rect(0, viewTop, W, Math.max(0, viewBottom - viewTop)); ctx.clip();
+    ctx.clearRect(0, viewTop, W, Math.max(0, viewBottom - viewTop));
     const labelAlpha = clamp((p - .55) / .08, 0, 1) * (switching ? Math.abs(1 - 2 * switching.t) : 1);
     if (labelAlpha > 0) {
       ctx.globalAlpha = labelAlpha; ctx.font = "600 14px 'Libre Franklin', sans-serif";
@@ -288,7 +358,8 @@ function initIntro(T, D) {
       tip.style.opacity = clamp((shown.z - .55) / .4, 0, 1).toFixed(3);
     } else tip.style.opacity = 0;
     if (switching) { switching.t = Math.min(1, switching.t + dt / .9); if (switching.t >= 1) switching = null; }
-    requestAnimationFrame(draw);
+    ctx.restore();
+    nextDraw();
   }
   // Critically damped spring toward `target` with angular frequency `w`, solved exactly for
   // the frame's dt, so a long frame cannot make it jump.
@@ -308,8 +379,9 @@ function initIntro(T, D) {
   }
   function tile(gi, x, y, w) {
     const h = w * 9 / 16;
-    if (x > W || x + w < 0 || y > H || y + h < 0) return;
-    ctx.drawImage(copy, (gi % COLS) * TW, Math.floor(gi / COLS) * TH, TW, TH, x, y, w, h);
+    if (x > W || x + w < 0 || y > viewBottom || y + h < viewTop) return;
+    const atlasScale = copy.width / (COLS * TW);
+    ctx.drawImage(copy, (gi % COLS) * TW * atlasScale, Math.floor(gi / COLS) * TH * atlasScale, TW * atlasScale, TH * atlasScale, x, y, w, h);
   }
   function onScroll() {
     const span = introTravel(intro);
@@ -353,10 +425,11 @@ function initIntro(T, D) {
   addEventListener("scroll", onScroll, { passive: true });
   addEventListener("resize", resize);
   // Off screen the wall stops: no decoding, no drawing.
-  new IntersectionObserver(([e]) => {
-    if (e.isIntersecting && !running) { running = true; last = performance.now(); video.play().catch(() => {}); requestAnimationFrame(draw); }
-    else if (!e.isIntersecting) { running = false; video.pause(); }
-  }).observe(intro);
+  observeAnimation(intro, () => {
+    running = true; last = performance.now();
+    if (poster.complete) playAtlas();
+    nextDraw();
+  }, () => { running = false; cancelAnimationFrame(drawFrame); video.pause(); });
   resize(); onScroll();
   document.fonts && document.fonts.ready.then(resize);
 }
@@ -367,8 +440,7 @@ function initIntro(T, D) {
 // After it, what the loop gives: the Environments, a game at a time, and the Data, an episode
 // at a time, each a window onto a list that keeps growing. Real games ride the arrows. Below
 // the drawing, what the chosen stage does, played out on one game from its records.
-function initLoop(S, T) {
-  const cycle = $("#cycle"), canvas = $("#cycle-fx"), panel = $("#loop-panel");
+function initStageNames() {
   const ICON = {
     scout: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" opacity=".5"/><g class="sweep"><path d="M12 12L12 3"/></g><circle cx="16.5" cy="8" r="1.2" fill="currentColor" stroke="none"/>',
     builder: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
@@ -380,9 +452,6 @@ function initLoop(S, T) {
     data: '<path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   };
   const NAME = { scout: "Scout", builder: "Builder", env: "Environments", policy: "Coding Player", vlm: "VLM Player", reports: "Reports", envs: "Verified Environments", data: "Data" };
-  cycle.querySelectorAll(".node").forEach(n => {
-    n.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24">${ICON[n.dataset.k]}</svg></span><span class="node-label">${n.dataset.k === "envs" ? "Verified<br>Environments" : NAME[n.dataset.k]}</span>`;
-  });
   // the stages named in the text are the same buttons, small
   document.querySelectorAll(".sname[data-k]").forEach(m => {
     m.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24">${ICON[m.dataset.k]}</svg></span><span class="t">${NAME[m.dataset.k]}</span>`;
@@ -391,6 +460,15 @@ function initLoop(S, T) {
       const keep = document.createElement("span"); keep.className = "nobr";
       m.replaceWith(keep); keep.append(m, after.data[0]); after.data = after.data.slice(1);
     }
+  });
+  return { ICON, NAME };
+}
+
+function initLoop(S, T) {
+  const cycle = $("#cycle"), canvas = $("#cycle-fx"), panel = $("#loop-panel");
+  const { ICON, NAME } = STAGES;
+  cycle.querySelectorAll(".node").forEach(n => {
+    n.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24">${ICON[n.dataset.k]}</svg></span><span class="node-label">${n.dataset.k === "envs" ? "Verified<br>Environments" : NAME[n.dataset.k]}</span>`;
   });
   // where the games were found
   const LOGOS = [["itchdotio.svg", "itch.io"], ["armorgames.png", "Armor Games"], ["newgrounds.png", "Newgrounds"],
@@ -686,7 +764,7 @@ function initLoop(S, T) {
 
   // ---------- the drawing
   const ctx = canvas.getContext("2d"), wall = new Image();
-  wall.src = "assets/wall.jpg";
+  wall.src = "assets/wall.webp";
   const COLS = T.cols, [TW, TH] = T.tile;
   let G = null;
   const node = k => cycle.querySelector(`.node[data-k=${k}]`);
@@ -940,12 +1018,13 @@ function initLoop(S, T) {
     thumb(it.gi, x, y, 54, 30, it.leg === "feed" ? .9 + .1 * clamp(it.t * 2.5, 0, 1) : 1, it.leg === "back" ? TURN : it.leg === "ship" ? GAME : null);
   }
 
-  let running = false, last = 0, clock = 0, spawnIn = 0;
+  let running = false, last = 0, clock = 0, spawnIn = 0, frameId = 0;
+  const nextFrame = () => { frameId = requestAnimationFrame(frame); };
   function frame(now) {
     if (!running) return;
     // Keep the full diagram on phones, with a lower frame rate for the wide canvas.
     if (compactLayout.matches && now - last < 1000 / 30) {
-      requestAnimationFrame(frame); return;
+      nextFrame(); return;
     }
     const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
     ctx.clearRect(0, 0, G.W, G.H);
@@ -974,17 +1053,14 @@ function initLoop(S, T) {
     }
     items.forEach(drawItem);
     tick(now);
-    requestAnimationFrame(frame);
+    nextFrame();
   }
-  new IntersectionObserver(([e]) => {
-    if (e.isIntersecting && !running) {
-      running = true; last = performance.now();
-      if (!cur) show("scout");
-      else if (video) video.play().catch(() => {});
-      requestAnimationFrame(frame);
-    }
-    else if (!e.isIntersecting) { running = false; if (video) video.pause(); }
-  }).observe(cycle.closest(".pin"));
+  observeAnimation(cycle.closest(".pin"), () => {
+    running = true; last = performance.now();
+    if (!cur) show("scout");
+    else if (video) video.play().catch(() => {});
+    nextFrame();
+  }, () => { running = false; cancelAnimationFrame(frameId); if (video) video.pause(); });
   addEventListener("resize", () => { layout(); });
   layout();
   document.fonts && document.fonts.ready.then(layout);

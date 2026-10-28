@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preload" as="image" href="assets/wall-mobile.webp" media="(pointer: coarse)">
+<link rel="preload" as="image" href="assets/wall.webp" media="(pointer: fine)">
 <meta name="robots" content="noindex, nofollow">
 <title>Game2Player: Scaling Gameplay Experience for Visual Agents through Environment–Player Co-Development</title>
 <link rel="icon" type="image/svg+xml" href="assets/logos/models/game2player.svg?v=2">
@@ -109,7 +111,7 @@
 <section class="chapter" id="leaderboard">
   <header class="wrap intro">
     <h2 class="sec">Leaderboard</h2>
-    <div class="method-summary"><p><span class="playerbench"><span class="pb-player">Player</span>Bench</span> comprises 50 held-out games and 287 tasks. We evaluate recent models on <span class="playerbench"><span class="pb-player">Player</span>Bench</span> using our harness, with one run per task and a budget of 100 steps. For <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a>, we evaluate our Game2Player models and report other models' results as published by the <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a> authors, also under a 100-step budget. When both generalist and computer-use results are available for a model, we show the configuration with higher progress and its corresponding success rate.</p></div>
+    <div class="method-summary"><p><span class="playerbench"><span class="pb-player">Player</span>Bench</span> comprises 50 held-out games and 287 tasks. We evaluate recent models on <span class="playerbench"><span class="pb-player">Player</span>Bench</span> using our harness, with one run per task and a budget of 100 steps. For <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a>, we evaluate our Game2Player models and GPT-6.1 Sol (low thinking), and report the remaining models' results as published by the <a class="benchmark-link" href="https://gameworld-project.github.io/" target="_blank" rel="noopener noreferrer">GameWorld</a> authors, also under a 100-step budget. When both generalist and computer-use results are available for a model, we show the configuration with higher progress and its corresponding success rate.</p></div>
   </header>
   <div class="pin" style="--hold: 55vh">
     <div class="pin-stage"><div class="wrap">
@@ -357,7 +359,7 @@
   </div></div>
 </section>
 <footer class="wrap foot">Game2Player</footer>
-<script src="app.js?v=20261028-scrollable-diagram"></script>
+<script src="app.js?v=20261028-performance"></script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "80464b6fd853479a80bc8d01827b1d62"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
