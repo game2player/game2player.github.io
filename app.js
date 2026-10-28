@@ -1743,11 +1743,11 @@ function modelIcon(name) {
 // One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
 // share a rank. The longer table scrolls inside a frame as tall as the shorter one.
 // A GameWorld entry names the harness it was played through, in that harness's color.
-// Keep harness names and interface details visible at every screen size.
+// Keep full harness names; show mobile interface details only when every note fits.
 const HARNESS = { gameworld: "GameWorld harness", vista: "VISTA harness", ours: "our harness" };
 const boardNote = r => r.harness
   ? `<span class="harness h-${r.harness}">${HARNESS[r.harness]}</span>`
-    + (r.note ? `<span> · ${esc(r.note)}</span>` : "")
+    + (r.note ? `<span class="${r.harness === "gameworld" ? "harness-interface" : ""}"> · ${esc(r.note)}</span>` : "")
   : esc(r.note);
 function initBoard(boards) {
   const cards = [...document.querySelectorAll(".lb[data-suite]")];
@@ -1757,6 +1757,29 @@ function initBoard(boards) {
     let key = "progress";
     const metric = $(".board-metric", card);
     metric.addEventListener("change", () => { key = metric.value; render(); });
+    const fitInterfaceLabels = () => {
+      card.classList.remove("hide-interfaces");
+      if (!matchMedia("(max-width: 600px)").matches) return;
+      const notes = [...card.querySelectorAll(".effort")];
+      // Measure the complete notes on one line before choosing one policy for the table.
+      const wraps = notes.some(note => {
+        const previous = note.style.whiteSpace;
+        note.style.whiteSpace = "nowrap";
+        const overflows = note.scrollWidth > note.clientWidth + 1;
+        note.style.whiteSpace = previous;
+        return overflows;
+      });
+      card.classList.toggle("hide-interfaces", wraps);
+    };
+    let measuredWidth;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width === measuredWidth) return;
+      measuredWidth = entry.contentRect.width;
+      fitInterfaceLabels();
+    });
+    observer.observe(card);
+    addEventListener("resize", fitInterfaceLabels);
+    document.fonts.ready.then(fitInterfaceLabels);
     function render() {
       card.dataset.metric = key; metric.value = key;
       const sorted = [...rows].sort((a, b) => b[key] - a[key] || b.progress - a.progress);
@@ -1769,6 +1792,7 @@ function initBoard(boards) {
       $("tbody", card).innerHTML = sorted.map(r => `<tr class="row-${r.kind}"><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
         <td><div class="model-label">${modelIcon(r.name)}<div class="model-copy"><b>${esc(r.name)}</b><span class="effort">${boardNote(r)}</span></div></div></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
       card.querySelectorAll("th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
+      fitInterfaceLabels();
     }
     card.querySelectorAll("th.sort").forEach(th => th.addEventListener("click", () => { key = th.dataset.k; render(); }));
     render();

@@ -801,6 +801,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--player); outlin
 .duo > *, .cmp-grid > * { min-width: 0; }
 .lb, #ablation { overflow-x: auto; }
 @media (max-width: 600px) {
+  .lb.hide-interfaces .harness-interface { display: none; }
   .lb th, .lb td { padding-left: 8px; padding-right: 8px; }
   .lb table { font-size: 13px; }
   .legend { flex-wrap: wrap; gap: 8px 16px; }
