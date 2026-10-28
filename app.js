@@ -1743,12 +1743,11 @@ function modelIcon(name) {
 // One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
 // share a rank. The longer table scrolls inside a frame as tall as the shorter one.
 // A GameWorld entry names the harness it was played through, in that harness's color.
-// A phone shows the short name and leaves out GameWorld's interface (generalist or computer-use),
-// so each entry stays on two lines.
-const HARNESS = { gameworld: ["GameWorld harness", "GameWorld"], vista: ["VISTA harness", "VISTA"], ours: ["our harness", "ours"] };
+// Keep harness names and interface details visible at every screen size.
+const HARNESS = { gameworld: "GameWorld harness", vista: "VISTA harness", ours: "our harness" };
 const boardNote = r => r.harness
-  ? `<span class="harness h-${r.harness}"><span class="full">${HARNESS[r.harness][0]}</span><span class="short">${HARNESS[r.harness][1]}</span></span>`
-    + (r.note ? `<span class="${r.harness === "gameworld" ? "full" : ""}"> · ${esc(r.note)}</span>` : "")
+  ? `<span class="harness h-${r.harness}">${HARNESS[r.harness]}</span>`
+    + (r.note ? `<span> · ${esc(r.note)}</span>` : "")
   : esc(r.note);
 function initBoard(boards) {
   const cards = [...document.querySelectorAll(".lb[data-suite]")];
