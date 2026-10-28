@@ -1723,22 +1723,28 @@ function initResults(R) {
       svg.setAttribute("height", h); svg.innerHTML = out;
     });
   }
-  // The 9B checkpoints: progress on both sets of games against training steps.
+  // The checkpoints of both sizes: progress on both sets of games against training steps, 4B dashed
+  // and 9B solid. Each line ends in its size and last value, nudged apart where two ends meet.
   function steps() {
     // as tall as the table beside it, so the two end on one line; the bar charts above take the same height
     const svg = $("#steps"), table = $("#ablation table");
     const h = clamp(table.getBoundingClientRect().bottom - svg.getBoundingClientRect().top, 260, 360);
-    const w = svg.clientWidth, L = 34, R_ = 28, T = 16, B = 26, ph = h - T - B, base = T + ph;
-    const pts = R.steps, last = pts[pts.length - 1].step, top = niceTop(Math.max(...pts.flatMap(p => [p.PlayerBench.progress, p.GameWorld.progress])));
+    const w = svg.clientWidth, L = 34, R_ = 64, T = 16, B = 26, ph = h - T - B, base = T + ph;
+    const sizes = Object.entries(R.steps), all = sizes.flatMap(([, pts]) => pts);
+    const last = Math.max(...all.map(p => p.step)), top = niceTop(Math.max(...all.flatMap(p => [p.PlayerBench.progress, p.GameWorld.progress])));
     const x = s => L + 12 + s / last * (w - L - R_ - 12), y = v => base - v / top * ph;
     let out = "";
-    for (let v = 0; v <= top; v += 10) out += `<line x1="${L}" x2="${w - R_ + 12}" y1="${y(v)}" y2="${y(v)}" class="grid"/>` + svgText(L - 8, y(v) + 4, v, "tick", "end");
-    pts.forEach(p => out += svgText(x(p.step), base + 20, p.step ? fmt(p.step) : "0", "tick", "middle"));
-    [["PlayerBench", "s-pb"], ["GameWorld", "s-gw"]].forEach(([suite, cls]) => {
+    for (let v = 0; v <= top; v += 10) out += `<line x1="${L}" x2="${x(last) + 6}" y1="${y(v)}" y2="${y(v)}" class="grid"/>` + svgText(L - 8, y(v) + 4, v, "tick", "end");
+    sizes[0][1].forEach(p => out += svgText(x(p.step), base + 20, p.step ? fmt(p.step) : "0", "tick", "middle"));
+    const ends = [];
+    [["PlayerBench", "s-pb"], ["GameWorld", "s-gw"]].forEach(([suite, cls]) => sizes.forEach(([size, pts]) => {
       const xy = pts.map(p => [x(p.step), y(p[suite].progress), p[suite].progress]);
-      out += `<polyline points="${xy.map(([a, b]) => `${a},${b}`).join(" ")}" class="line ${cls}"/>`;
-      xy.forEach(([a, b, v]) => out += `<circle cx="${a}" cy="${b}" r="3.5" class="dot ${cls}"/>` + svgText(a, b - 9, v.toFixed(1), "v " + cls, "middle"));
-    });
+      out += `<polyline points="${xy.map(([a, b]) => `${a},${b}`).join(" ")}" class="line ${cls}${size === "4B" ? " dash" : ""}"/>`;
+      xy.forEach(([a, b, v]) => out += `<circle cx="${a}" cy="${b}" r="3.5" class="dot ${cls}"><title>${size}, ${esc(suite)}: ${v.toFixed(1)}</title></circle>`);
+      ends.push([xy[xy.length - 1][1], `${size} ${xy[xy.length - 1][2].toFixed(1)}`, cls]);
+    }));
+    ends.sort((a, b) => a[0] - b[0]).forEach((e, i) => { if (i) e[0] = Math.max(e[0], ends[i - 1][0] + 15); });
+    ends.forEach(([b, text, cls]) => out += svgText(x(last) + 10, b + 4, text, "v " + cls));
     svg.setAttribute("height", h); svg.innerHTML = out;
     return h;
   }
