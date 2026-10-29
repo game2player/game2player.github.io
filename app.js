@@ -1821,17 +1821,22 @@ function initResults(R) {
   function bars(h) {
     const top = niceTop(Math.max(...R.main.flatMap(g => SUITES.map(([s]) => g.ours[s][metric]))));
     SUITES.forEach(([suite, sel]) => {
-      const svg = $(sel), w = svg.clientWidth, L = 34, T = 46, B = 30, ph = h - T - B, base = T + ph;
-      const y = v => base - v / top * ph, slot = (w - L) / R.main.length, bw = Math.min(46, slot * .3);
+      const svg = $(sel), w = svg.clientWidth, L = 34, slot = (w - L) / R.main.length;
+      // on a narrow panel "thinking on" goes on a second line under the model size
+      const wrap = slot < 112, T = 46, B = wrap ? 46 : 30, ph = h - T - B, base = T + ph;
+      const y = v => base - v / top * ph, bw = Math.min(46, slot * .3);
       let out = benchmarkTitle(0, 18, suite);
       for (let v = 0; v <= top; v += 10) out += `<line x1="${L}" x2="${w}" y1="${y(v)}" y2="${y(v)}" class="grid"/>` + svgText(L - 8, y(v) + 4, v, "tick", "end");
       R.main.forEach((g, i) => {
         const mid = L + (i + .5) * slot;
-        [["base", -1], ["ours", 1]].forEach(([k, side]) => {
+        // a base model without a result on this benchmark leaves its bar out
+        [["base", -1], ["ours", 1]].filter(([k]) => g[k][suite]).forEach(([k, side]) => {
           const v = g[k][suite][metric], x = mid + side * (bw / 2 + 3) - bw / 2;
           out += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${base - y(v)}" rx="2" class="b-${k}"/>` + svgText(x + bw / 2, y(v) - 7, v.toFixed(1), "v-" + k, "middle");
         });
-        out += svgText(mid, base + 21, g.thinking === "on" ? `${g.size}, thinking on` : g.size, "cat", "middle");
+        out += g.thinking !== "on" ? svgText(mid, base + 21, g.size, "cat", "middle")
+          : wrap ? svgText(mid, base + 21, g.size, "cat", "middle") + svgText(mid, base + 38, "thinking on", "cat", "middle")
+          : svgText(mid, base + 21, `${g.size}, thinking on`, "cat", "middle");
       });
       svg.setAttribute("height", h); svg.innerHTML = out;
     });
