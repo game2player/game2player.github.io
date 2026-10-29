@@ -1746,13 +1746,16 @@ function modelIcon(name) {
 }
 // One ranked table per benchmark, sorted by the column whose header was clicked; equal scores
 // share a rank. The longer table scrolls inside a frame as tall as the shorter one.
-// A GameWorld entry names the harness it was played through, in that harness's color.
+// A GameWorld entry names its harness or the published evaluation protocol.
 // Keep full harness names; show mobile interface details only when every note fits.
-const HARNESS = { gameworld: "GameWorld harness", ours: "our harness" };
+const HARNESS = { gameworld: "GameWorld harness", ours: "our harness", player1: "PLAYER-1 protocol" };
 const boardNote = r => r.harness
   ? `<span class="harness h-${r.harness}">${HARNESS[r.harness]}</span>`
     + (r.note ? `<span class="${r.harness === "gameworld" ? "harness-interface" : ""}"> · ${esc(r.note)}</span>` : "")
   : esc(r.note);
+const boardSource = r => r.source_url
+  ? ` · <a class="benchmark-link" href="${esc(r.source_url)}" target="_blank" rel="noopener noreferrer">${esc(r.source_label || "Source")}</a>`
+  : "";
 function initBoard(boards) {
   const cards = [...document.querySelectorAll(".lb[data-suite]")];
   cards.forEach(card => {
@@ -1793,8 +1796,8 @@ function initBoard(boards) {
       const cell = (r, k) => k === key
         ? `<td class="n on"><div><span class="bar"><i style="width:${(r[k] / top * 100).toFixed(1)}%"></i></span><b>${r[k].toFixed(digits)}</b></div></td>`
         : `<td class="n">${r[k].toFixed(digits)}</td>`;
-      $("tbody", card).innerHTML = sorted.map(r => `<tr class="row-${r.kind}"><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
-        <td><div class="model-label">${modelIcon(r.name)}<div class="model-copy"><b>${esc(r.name)}</b><span class="effort">${boardNote(r)}</span></div></div></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
+      $("tbody", card).innerHTML = sorted.map(r => `<tr class="row-${r.kind}${r.harness === "player1" ? " published-protocol" : ""}"><td class="rk">${r.rank <= 3 ? `<span class="medal m${r.rank}">${r.rank}</span>` : r.rank}</td>
+        <td><div class="model-label">${modelIcon(r.name)}<div class="model-copy"><b>${esc(r.name)}</b><span class="effort">${boardNote(r)}${boardSource(r)}</span></div></div></td>${cell(r, "progress")}${cell(r, "success")}</tr>`).join("");
       card.querySelectorAll("th.sort").forEach(th => th.classList.toggle("on", th.dataset.k === key));
       fitInterfaceLabels();
     }
