@@ -1,5 +1,8 @@
 /* Project page prototype. All data comes from assets/*.json, exported by build/*.py. */
 
+// Hide selected gameplay replays while retaining their source data.
+const HIDDEN_REPLAY_GAMES = new Set(["476_overdisk"]);
+
 const GENRE = {
   "Action": "#ec9800", "Puzzle": "#2ba0e6", "Platformer": "#0f9d6c", "Shooter": "#e0531a",
   "Strategy": "#2563c9", "Simulation": "#c9619f", "Racing": "#bf9f00", "Adventure": "#7a4cb5",
@@ -68,7 +71,7 @@ lazyChapter("loop", async () => {
   const [stories, [tiles]] = await Promise.all([load("assets/stories.json"), introData]);
   initLoop(stories, tiles);
 });
-lazyChapter("examples", async () => initExamples((await load("assets/data.json")).replays));
+lazyChapter("examples", async () => initExamples((await load("assets/data.json")).replays.filter(r => !HIDDEN_REPLAY_GAMES.has(r.game))));
 lazyChapter("players", async () => initPlayers(await load("assets/policy/index.json")));
 lazyChapter("dataset", async () => initDataset(await load("assets/dataset.json")));
 lazyChapter("results", async () => initResults(await load("assets/results.json")));
